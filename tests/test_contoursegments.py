@@ -3,9 +3,12 @@ from marchingalgo._find_contours_cy import _get_contour_segments
 
 import numpy as np
 
+import pytest
 
-def test_get_contour_segments():
-    array = [
+
+@pytest.fixture()
+def array() -> list[float]:
+    return [
         0.60869334,
         0.66427812,
         0.52252734,
@@ -32,12 +35,13 @@ def test_get_contour_segments():
         0.53447815,
         0.71911536,
     ]
+
+
+def test_get_contour_segments(array: list[float]) -> None:
     segments_ref = _get_contour_segments(
         np.array(array).reshape(5, 5), 0.5, False, None
     )
-    segments = marchingsquares.get_contour_segments(
-        array, nb_cols=5, level=0.5, vertex_connect_high=False, mask=[]
-    )
+    segments = marchingsquares.get_contour_segments(array, nb_cols=5, level=0.5)
     assert len(segments) == len(
         segments_ref
     ), f"The number of segments is different {len(segments)}!={len(segments_ref)}"

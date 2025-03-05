@@ -84,21 +84,21 @@ impl Segment {
 
 /// Formats the sum of two numbers as string.
 #[pyfunction]
+#[pyo3(signature=(array, nb_cols, level, vertex_connect_high=false, mask=None))]
 fn get_contour_segments(
     array: Vec<f64>,
     nb_cols: usize,
     level: f64,
     vertex_connect_high: bool,
-    mask: Vec<bool>,
+    mask: Option<Vec<bool>>,
 ) -> Vec<Segment> {
     assert!(
         nb_cols > 1,
         "Can't find the contour segments of one column."
     );
-    let use_mask: bool = mask.len() > 0;
-    if use_mask {
+    if let Some(m) = mask.as_ref() {
         assert!(
-            array.len() == mask.len(),
+            array.len() == m.len(),
             "The array and the mask are not compatible"
         );
     }
@@ -115,113 +115,123 @@ fn get_contour_segments(
             let index_ur = r0 * nb_cols + c1;
             let index_ll = r1 * nb_cols + c0;
             let index_lr = r1 * nb_cols + c1;
-            if use_mask && !(mask[index_ul] && mask[index_ur] && mask[index_ll] && mask[index_lr]) {
-                continue;
+            if let Some(m) = mask.as_ref() {
+                if let (Some(&m_ul), Some(&m_ur), Some(&m_ll), Some(&m_lr)) = (
+                    m.get(index_ul),
+                    m.get(index_ur),
+                    m.get(index_ll),
+                    m.get(index_lr),
+                ) {
+                    if !(m_ul && m_ur && m_ll && m_lr) {
+                        continue;
+                    }
+                }
             }
-            let (ul, ur, ll, lr) = (
-                array[index_ul],
-                array[index_ur],
-                array[index_ll],
-                array[index_lr],
-            );
-            let square_case = 1 * (ul > level) as u8
-                | 2 * (ur > level) as u8
-                | 4 * (ll > level) as u8
-                | 8 * (lr > level) as u8;
-            // Compute intersection points
-            match square_case {
-                1 => segments.push(Segment {
-                    p1: Point::top(r0, c0, ul, ur, level),
-                    p2: Point::left(r0, c0, ul, ll, level),
-                }),
-                2 => segments.push(Segment {
-                    p1: Point::right(r0, c1, ur, lr, level),
-                    p2: Point::top(r0, c0, ul, ur, level),
-                }),
-                3 => segments.push(Segment {
-                    p1: Point::right(r0, c1, ur, lr, level),
-                    p2: Point::left(r0, c0, ul, ll, level),
-                }),
-                4 => segments.push(Segment {
-                    p1: Point::left(r0, c0, ul, ll, level),
-                    p2: Point::bottom(r1, c0, ll, lr, level),
-                }),
-                5 => segments.push(Segment {
-                    p1: Point::top(r0, c0, ul, ur, level),
-                    p2: Point::bottom(r1, c0, ll, lr, level),
-                }),
-                6 => {
-                    if vertex_connect_high {
-                        segments.push(Segment {
-                            p1: Point::left(r0, c0, ul, ll, level),
-                            p2: Point::top(r0, c0, ul, ur, level),
-                        });
-                        segments.push(Segment {
-                            p1: Point::right(r0, c1, ur, lr, level),
-                            p2: Point::bottom(r1, c0, ll, lr, level),
-                        });
-                    } else {
-                        segments.push(Segment {
-                            p1: Point::right(r0, c1, ur, lr, level),
-                            p2: Point::top(r0, c0, ul, ur, level),
-                        });
-                        segments.push(Segment {
-                            p1: Point::left(r0, c0, ul, ll, level),
-                            p2: Point::bottom(r1, c0, ll, lr, level),
-                        });
+            if let (Some(&ul), Some(&ur), Some(&ll), Some(&lr)) = (
+                array.get(index_ul),
+                array.get(index_ur),
+                array.get(index_ll),
+                array.get(index_lr),
+            ) {
+                let square_case = 1 * (ul > level) as u8
+                    | 2 * (ur > level) as u8
+                    | 4 * (ll > level) as u8
+                    | 8 * (lr > level) as u8;
+                // Compute intersection points
+                match square_case {
+                    1 => segments.push(Segment {
+                        p1: Point::top(r0, c0, ul, ur, level),
+                        p2: Point::left(r0, c0, ul, ll, level),
+                    }),
+                    2 => segments.push(Segment {
+                        p1: Point::right(r0, c1, ur, lr, level),
+                        p2: Point::top(r0, c0, ul, ur, level),
+                    }),
+                    3 => segments.push(Segment {
+                        p1: Point::right(r0, c1, ur, lr, level),
+                        p2: Point::left(r0, c0, ul, ll, level),
+                    }),
+                    4 => segments.push(Segment {
+                        p1: Point::left(r0, c0, ul, ll, level),
+                        p2: Point::bottom(r1, c0, ll, lr, level),
+                    }),
+                    5 => segments.push(Segment {
+                        p1: Point::top(r0, c0, ul, ur, level),
+                        p2: Point::bottom(r1, c0, ll, lr, level),
+                    }),
+                    6 => {
+                        if vertex_connect_high {
+                            segments.push(Segment {
+                                p1: Point::left(r0, c0, ul, ll, level),
+                                p2: Point::top(r0, c0, ul, ur, level),
+                            });
+                            segments.push(Segment {
+                                p1: Point::right(r0, c1, ur, lr, level),
+                                p2: Point::bottom(r1, c0, ll, lr, level),
+                            });
+                        } else {
+                            segments.push(Segment {
+                                p1: Point::right(r0, c1, ur, lr, level),
+                                p2: Point::top(r0, c0, ul, ur, level),
+                            });
+                            segments.push(Segment {
+                                p1: Point::left(r0, c0, ul, ll, level),
+                                p2: Point::bottom(r1, c0, ll, lr, level),
+                            });
+                        }
                     }
-                }
-                7 => segments.push(Segment {
-                    p1: Point::right(r0, c1, ur, lr, level),
-                    p2: Point::bottom(r1, c0, ll, lr, level),
-                }),
-                8 => segments.push(Segment {
-                    p1: Point::bottom(r1, c0, ll, lr, level),
-                    p2: Point::right(r0, c1, ur, lr, level),
-                }),
-                9 => {
-                    if vertex_connect_high {
-                        segments.push(Segment {
-                            p1: Point::top(r0, c0, ul, ur, level),
-                            p2: Point::right(r0, c1, ur, lr, level),
-                        });
-                        segments.push(Segment {
-                            p1: Point::bottom(r1, c0, ll, lr, level),
-                            p2: Point::left(r0, c0, ul, ll, level),
-                        });
-                    } else {
-                        segments.push(Segment {
-                            p1: Point::top(r0, c0, ul, ur, level),
-                            p2: Point::left(r0, c0, ul, ll, level),
-                        });
-                        segments.push(Segment {
-                            p1: Point::bottom(r1, c0, ll, lr, level),
-                            p2: Point::right(r0, c1, ur, lr, level),
-                        });
+                    7 => segments.push(Segment {
+                        p1: Point::right(r0, c1, ur, lr, level),
+                        p2: Point::bottom(r1, c0, ll, lr, level),
+                    }),
+                    8 => segments.push(Segment {
+                        p1: Point::bottom(r1, c0, ll, lr, level),
+                        p2: Point::right(r0, c1, ur, lr, level),
+                    }),
+                    9 => {
+                        if vertex_connect_high {
+                            segments.push(Segment {
+                                p1: Point::top(r0, c0, ul, ur, level),
+                                p2: Point::right(r0, c1, ur, lr, level),
+                            });
+                            segments.push(Segment {
+                                p1: Point::bottom(r1, c0, ll, lr, level),
+                                p2: Point::left(r0, c0, ul, ll, level),
+                            });
+                        } else {
+                            segments.push(Segment {
+                                p1: Point::top(r0, c0, ul, ur, level),
+                                p2: Point::left(r0, c0, ul, ll, level),
+                            });
+                            segments.push(Segment {
+                                p1: Point::bottom(r1, c0, ll, lr, level),
+                                p2: Point::right(r0, c1, ur, lr, level),
+                            });
+                        }
                     }
+                    10 => segments.push(Segment {
+                        p1: Point::bottom(r1, c0, ll, lr, level),
+                        p2: Point::top(r0, c0, ul, ur, level),
+                    }),
+                    11 => segments.push(Segment {
+                        p1: Point::bottom(r1, c0, ll, lr, level),
+                        p2: Point::left(r0, c0, ul, ll, level),
+                    }),
+                    12 => segments.push(Segment {
+                        p1: Point::left(r0, c0, ul, ll, level),
+                        p2: Point::right(r0, c1, ur, lr, level),
+                    }),
+                    13 => segments.push(Segment {
+                        p1: Point::top(r0, c0, ul, ur, level),
+                        p2: Point::right(r0, c1, ur, lr, level),
+                    }),
+                    14 => segments.push(Segment {
+                        p1: Point::left(r0, c0, ul, ll, level),
+                        p2: Point::top(r0, c0, ul, ur, level),
+                    }),
+                    0 | 15 => continue, // No segments pass through the square
+                    other_case => panic!("Unexpected case: {}", other_case),
                 }
-                10 => segments.push(Segment {
-                    p1: Point::bottom(r1, c0, ll, lr, level),
-                    p2: Point::top(r0, c0, ul, ur, level),
-                }),
-                11 => segments.push(Segment {
-                    p1: Point::bottom(r1, c0, ll, lr, level),
-                    p2: Point::left(r0, c0, ul, ll, level),
-                }),
-                12 => segments.push(Segment {
-                    p1: Point::left(r0, c0, ul, ll, level),
-                    p2: Point::right(r0, c1, ur, lr, level),
-                }),
-                13 => segments.push(Segment {
-                    p1: Point::top(r0, c0, ul, ur, level),
-                    p2: Point::right(r0, c1, ur, lr, level),
-                }),
-                14 => segments.push(Segment {
-                    p1: Point::left(r0, c0, ul, ll, level),
-                    p2: Point::top(r0, c0, ul, ur, level),
-                }),
-                0 | 15 => continue, // No segments pass through the square
-                _ => panic!("Unexpected value"),
             }
         }
     }
