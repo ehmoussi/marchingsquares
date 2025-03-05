@@ -1,5 +1,6 @@
 import marchingsquares
 from marchingalgo._find_contours_cy import _get_contour_segments
+from marchingalgo import find_contours
 
 import numpy as np
 
@@ -47,6 +48,20 @@ def test_get_contour_segments(array: list[float]) -> None:
     ), f"The number of segments is different {len(segments)}!={len(segments_ref)}"
     for segment, segment_ref in zip(segments, segments_ref):
         for point, point_ref_v in zip((segment.p1, segment.p2), segment_ref):
+            point_ref = marchingsquares.Point.new(point_ref_v[0], point_ref_v[1])
+            assert point.close(
+                point_ref, 1e-16
+            ), f"({point.x}, {point.y}) != ({point_ref.x}, {point_ref.y})"
+
+
+def test_marching_squares(array: list[float]) -> None:
+    contours_ref = find_contours(np.array(array).reshape(5, 5), 0.5)
+    contours = marchingsquares.marching_squares(array, nb_cols=5, level=0.5)
+    assert len(contours) == len(
+        contours_ref
+    ), f"The number of contours is different {len(contours)}!={len(contours_ref)}"
+    for contour, contour_ref in zip(contours, contours_ref):
+        for point, point_ref_v in zip(contour, contour_ref):
             point_ref = marchingsquares.Point.new(point_ref_v[0], point_ref_v[1])
             assert point.close(
                 point_ref, 1e-16

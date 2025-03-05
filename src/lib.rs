@@ -1,3 +1,5 @@
+use std::collections::VecDeque;
+
 use pyo3::prelude::*;
 
 #[inline]
@@ -238,11 +240,65 @@ fn get_contour_segments(
     return segments;
 }
 
+fn assemble_contours(segments: &Vec<Segment>, tol: f64) -> Vec<Vec<Point>> {
+    let mut contours = Vec::with_capacity(segments.len());
+    let mut queue = VecDeque::with_capacity(segments.len());
+    queue.extend(segments);
+    let mut not_used = Vec::with_capacity(segments.len());
+    while not_used.len() > 0 || queue.len() > 0 {
+        queue.extend(not_used.iter());
+        not_used.clear();
+        let mut contour = VecDeque::with_capacity(queue.len());
+        while queue.len() > 0 {
+            let segment = queue.pop_front().unwrap();
+            if contour.len() == 0 {
+                contour.push_back(segment.p1.clone());
+                contour.push_back(segment.p2.clone());
+            } else if contour
+                .iter()
+                .last()
+                .is_some_and(|p: &Point| p.close(&segment.p1, tol))
+            {
+                contour.push_back(segment.p2.clone());
+                for &segment_not_used in not_used.iter().rev() {
+                    queue.push_front(segment_not_used);
+                }
+                not_used.clear();
+            } else if contour[0].close(&segment.p2, tol) {
+                contour.push_front(segment.p1.clone());
+                for &segment_not_used in not_used.iter().rev() {
+                    queue.push_front(segment_not_used);
+                }
+                not_used.clear();
+            } else {
+                not_used.push(segment);
+            }
+        }
+        contours.push(contour.into());
+    }
+    return contours;
+}
+
+#[pyfunction]
+#[pyo3(signature=(array, nb_cols, level, is_fully_connected=false, mask=None, tol=1e-10))]
+fn marching_squares(
+    array: Vec<f64>,
+    nb_cols: usize,
+    level: f64,
+    is_fully_connected: bool,
+    mask: Option<Vec<bool>>,
+    tol: f64,
+) -> Vec<Vec<Point>> {
+    let segments = get_contour_segments(array, nb_cols, level, is_fully_connected, mask);
+    return assemble_contours(&segments, tol);
+}
+
 /// A Python module implemented in Rust.
 #[pymodule]
 fn marchingsquares(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_class::<Point>()?;
     m.add_class::<Segment>()?;
     m.add_function(wrap_pyfunction!(get_contour_segments, m)?)?;
+    m.add_function(wrap_pyfunction!(marching_squares, m)?)?;
     Ok(())
 }
