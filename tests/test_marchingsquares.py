@@ -47,7 +47,7 @@ def test_get_contour_segments(array: list[float]) -> None:
         segments_ref
     ), f"The number of segments is different {len(segments)}!={len(segments_ref)}"
     for segment, segment_ref in zip(segments, segments_ref):
-        for point, point_ref_v in zip((segment.p1, segment.p2), segment_ref):
+        for point, point_ref_v in zip(segment, segment_ref):
             point_ref = marchingsquares.Point.new(point_ref_v[0], point_ref_v[1])
             assert point.close(
                 point_ref, 1e-16
