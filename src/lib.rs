@@ -1,4 +1,4 @@
-use pyo3::prelude::*;
+use pyo3::{exceptions::PyValueError, prelude::*};
 
 #[inline]
 fn get_fraction(from_value: f64, to_value: f64, level: f64) -> f64 {
@@ -72,11 +72,11 @@ fn get_contour_segments(
     level: f64,
     vertex_connect_high: bool,
     mask: Option<Vec<Vec<bool>>>,
-) -> Vec<(Point, Point)> {
-    _get_contour_segments(&array, level, vertex_connect_high, mask.as_ref())
-        .into_iter()
-        .filter_map(|s| s)
-        .collect()
+) -> PyResult<Vec<(Point, Point)>> {
+    match _get_contour_segments(&array, level, vertex_connect_high, mask.as_ref()) {
+        Ok(segments) => Ok(segments.into_iter().filter_map(|s| s).collect()),
+        Err(msg) => Err(PyValueError::new_err(msg)),
+    }
 }
 
 fn _get_contour_segments(
@@ -84,7 +84,7 @@ fn _get_contour_segments(
     level: f64,
     vertex_connect_high: bool,
     mask: Option<&Vec<Vec<bool>>>,
-) -> Vec<Option<(Point, Point)>> {
+) -> Result<Vec<Option<(Point, Point)>>, String> {
     let nb_rows = array.len();
     let nb_cols = match array.get(0) {
         Some(first_row) => first_row.len(),
@@ -95,37 +95,35 @@ fn _get_contour_segments(
             Some(mask_row) => mask_row.len(),
             None => 0,
         };
-        assert_eq!(
-            (nb_rows, nb_cols),
-            (m.len(), mask_nb_cols),
-            "The array and the mask must have the same shape"
-        );
+        let array_shape = (nb_rows, nb_cols);
+        let mask_shape = (m.len(), mask_nb_cols);
+        if array_shape != mask_shape {
+            return Err(format!(
+            "The array and the mask must have the same shape, {array_shape:?} != {mask_shape:?}",
+        ));
+        }
     }
     let mut segments: Vec<Option<(Point, Point)>> = Vec::with_capacity(2 * nb_rows * nb_cols);
     for r0 in 0..(array.len() - 1) {
         let current_row = array
             .get(r0)
             .expect("The iterator should be bound by the length of the array");
-        assert_eq!(
-            current_row.len(),
-            nb_cols,
-            "The array don't have the same number of columns. The row {} has {} instead of {}",
-            r0,
-            current_row.len(),
-            nb_cols
-        );
+        if current_row.len() != nb_cols {
+            return Err(format!(
+                "The array don't have the same number of columns. The row {r0} has {current_row_nb_cols} instead of {nb_cols}",
+                current_row_nb_cols=current_row.len(),
+            ));
+        }
         let r1 = r0 + 1;
         let next_row = array
             .get(r1)
             .expect("The iterator should end one row before the end");
-        assert_eq!(
-            next_row.len(),
-            nb_cols,
-            "The array don't have the same number of columns. The row {} has {} instead of {}",
-            r1,
-            next_row.len(),
-            nb_cols
-        );
+        if next_row.len() != nb_cols {
+            return Err(format!(
+                "The array don't have the same number of columns. The row {r1} has {next_row_nb_cols} instead of {nb_cols}",
+                next_row_nb_cols=next_row.len(),
+            ));
+        }
         let (current_row_mask, next_row_mask) = match mask {
             Some(m) => (
                 Some(
@@ -318,11 +316,11 @@ fn _get_contour_segments(
         segments.push(None);
         segments.push(None);
     }
-    return segments;
+    Ok(segments)
 }
 
 fn assemble_contours(
-    segments: &mut Vec<Option<(Point, Point)>>,
+    segments: &Vec<Option<(Point, Point)>>,
     nb_cols: usize,
     tol: f64,
 ) -> Vec<Vec<Point>> {
@@ -501,18 +499,21 @@ fn marching_squares(
     is_fully_connected: bool,
     mask: Option<Vec<Vec<bool>>>,
     tol: f64,
-) -> Vec<Vec<Point>> {
+) -> PyResult<Vec<Vec<Point>>> {
     let nb_rows = array.len();
     let nb_cols = match array.get(0) {
         Some(a) => a.len(),
         None => 0,
     };
-    let mut segments = _get_contour_segments(&array, level, is_fully_connected, mask.as_ref());
-    assert_eq!(segments.len(), 2 * nb_rows * nb_cols);
-    return assemble_contours(&mut segments, nb_cols, tol);
+    match _get_contour_segments(&array, level, is_fully_connected, mask.as_ref()) {
+        Ok(segments) => {
+            debug_assert_eq!(segments.len(), 2 * nb_rows * nb_cols);
+            Ok(assemble_contours(&segments, nb_cols, tol))
+        }
+        Err(msg) => Err(PyValueError::new_err(msg)),
+    }
 }
 
-/// A Python module implemented in Rust.
 #[pymodule]
 fn marchingsquares(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_class::<Point>()?;

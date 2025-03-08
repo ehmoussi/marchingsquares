@@ -161,5 +161,5 @@ def test_marching_squares_with_incorrect_mask_size(
         )
         < 0.1
     )
-    with pytest.raises(BaseException, match="must have the same shape"):
+    with pytest.raises(ValueError, match="must have the same shape"):
         marchingsquares.marching_squares(random_array, level=0.5, tol=1e-16, mask=mask)
