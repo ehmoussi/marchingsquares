@@ -110,7 +110,7 @@ fn _get_contour_segments(
             .expect("The iterator should be bound by the length of the array");
         if current_row.len() != nb_cols {
             return Err(format!(
-                "The array don't have the same number of columns. The row {r0} has {current_row_nb_cols} instead of {nb_cols}",
+                "The array don't have the same number of columns. The row {r0} has {current_row_nb_cols} instead of {nb_cols} columns",
                 current_row_nb_cols=current_row.len(),
             ));
         }
@@ -120,7 +120,7 @@ fn _get_contour_segments(
             .expect("The iterator should end one row before the end");
         if next_row.len() != nb_cols {
             return Err(format!(
-                "The array don't have the same number of columns. The row {r1} has {next_row_nb_cols} instead of {nb_cols}",
+                "The array don't have the same number of columns. The row {r1} has {next_row_nb_cols} instead of {nb_cols} columns",
                 next_row_nb_cols=next_row.len(),
             ));
         }
@@ -518,6 +518,7 @@ fn marching_squares(
 fn marchingsquares(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_class::<Point>()?;
     m.add_function(wrap_pyfunction!(get_contour_segments, m)?)?;
+    // Marching squares algorithm
     m.add_function(wrap_pyfunction!(marching_squares, m)?)?;
     Ok(())
 }

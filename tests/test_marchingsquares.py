@@ -2,6 +2,7 @@ import time
 import marchingsquares
 from marchingalgo._find_contours_cy import _get_contour_segments
 from marchingalgo import find_contours
+import marchingsquares.marchingsquares
 from numpy.typing import NDArray
 
 import numpy as np
@@ -163,3 +164,9 @@ def test_marching_squares_with_incorrect_mask_size(
     )
     with pytest.raises(ValueError, match="must have the same shape"):
         marchingsquares.marching_squares(random_array, level=0.5, tol=1e-16, mask=mask)
+
+
+def test_bad_array_shape():
+    array = [[0, 1], [1]]
+    with pytest.raises(ValueError, match="same number of columns"):
+        marchingsquares.marching_squares(array, 0.5)
