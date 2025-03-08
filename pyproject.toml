@@ -4,7 +4,6 @@ build-backend = "maturin"
 
 [project]
 name = "marchingsquares"
-version = "0.1.0"
 description = "Marching squares algorithm"
 readme = "README.md"
 requires-python = ">=3.6"
