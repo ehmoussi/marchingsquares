@@ -276,9 +276,22 @@ fn assemble_contours(
     nb_cols: usize,
     tol: f64,
 ) -> Vec<Vec<Point>> {
-    // println!("segments: {:?}", segments);
     let mut contours = Vec::with_capacity(segments.len());
     let mut visited = vec![false; segments.len()];
+    let mut neighbors = Vec::with_capacity(segments.len());
+    for index in 0..segments.len() {
+        let mut neighbors_index = Vec::with_capacity(8);
+        for (i, j) in [(-1, 0), (0, -1), (0, 1), (1, 0)].iter() {
+            for k in 0..2 {
+                if let Some(neighbor_index) = index.checked_add_signed(
+                    i * 2 * (nb_cols as isize) + 2 * j + k - (index as isize % 2),
+                ) {
+                    neighbors_index.push(neighbor_index);
+                }
+            }
+        }
+        neighbors.push(neighbors_index);
+    }
     for first_index in 0..segments.len() {
         if segments[first_index].is_none() {
             visited[first_index] = true;
@@ -286,7 +299,7 @@ fn assemble_contours(
         } else if visited[first_index] {
             continue;
         }
-        let mut contour = Vec::with_capacity(segments.len());
+        let mut contour = Vec::new();
         let mut tail_index = first_index;
         let mut head_index = first_index;
         visited[first_index] = true;
@@ -294,17 +307,14 @@ fn assemble_contours(
             if let Some(segment) = seg {
                 contour.push(segment.0.clone());
                 contour.push(segment.1.clone());
-                // println!("start new contour");
-                // println!("first index of the new contour is : {}", first_index);
             }
         }
         let mut nb_points = 0;
         while contour.len() > nb_points {
-            // println!("nb points remaining {}", not_visited.len());
             nb_points = contour.len();
             match (
-                find_next_segment(&segments, &visited, nb_cols, head_index, tol),
-                find_previous_segment(&segments, &visited, nb_cols, tail_index, tol),
+                find_next_segment(&segments, &visited, &neighbors, head_index, tol),
+                find_previous_segment(&segments, &visited, &neighbors, tail_index, tol),
             ) {
                 (Some(next_index), None) => {
                     if let Some(next_seg) = segments.get(next_index) {
@@ -327,7 +337,6 @@ fn assemble_contours(
                             contour.insert(0, prev_segment.0.clone());
                             tail_index = prev_index;
                             visited[prev_index] = true;
-                            // println!("{:?}", contour);
                         } else {
                             unreachable!(
                                 "The returned index should be an available segment index."
@@ -360,7 +369,6 @@ fn assemble_contours(
                                 contour.insert(0, prev_segment.0.clone());
                                 tail_index = prev_index;
                                 visited[prev_index] = true;
-                                // println!("{:?}", contour);
                             } else {
                                 unreachable!(
                                     "The returned index should be an available segment index."
@@ -376,7 +384,6 @@ fn assemble_contours(
                 (None, None) => (),
             }
         }
-        // println!("{:?}", contour);
         if contour.len() > 0 {
             contours.push(contour);
         }
@@ -384,29 +391,22 @@ fn assemble_contours(
     return contours;
 }
 
+#[inline]
 fn find_next_segment(
     segments: &Vec<Option<(Point, Point)>>,
     visited: &Vec<bool>,
-    nb_cols: usize,
+    neighbors: &Vec<Vec<usize>>,
     index: usize,
     tol: f64,
 ) -> Option<usize> {
-    if let Some(seg) = segments.get(index) {
+    if let (Some(seg), Some(neighbors_index)) = (segments.get(index), neighbors.get(index)) {
         if let Some(segment) = seg {
-            for (i, j) in [(-1, 0), (0, -1), (0, 1), (1, 0)].iter() {
-                for k in 0..2 {
-                    if let Some(next_index) = index.checked_add_signed(
-                        i * 2 * (nb_cols as isize) + 2 * j + k - (index as isize % 2),
-                    ) {
-                        // println!("is close ?: {}", next_index + 1);
-                        if !visited[next_index] {
-                            if let Some(next_seg) = segments.get(next_index) {
-                                if let Some(next_segment) = next_seg {
-                                    // println!("is close ?: {:?}", next_segment);
-                                    if segment.1.close(&next_segment.0, tol) {
-                                        return Some(next_index);
-                                    }
-                                }
+            for &next_index in neighbors_index {
+                if !visited[next_index] {
+                    if let Some(next_seg) = segments.get(next_index) {
+                        if let Some(next_segment) = next_seg {
+                            if segment.1.close(&next_segment.0, tol) {
+                                return Some(next_index);
                             }
                         }
                     }
@@ -417,27 +417,22 @@ fn find_next_segment(
     None
 }
 
+#[inline]
 fn find_previous_segment(
     segments: &Vec<Option<(Point, Point)>>,
     visited: &Vec<bool>,
-    nb_cols: usize,
+    neighbors: &Vec<Vec<usize>>,
     index: usize,
     tol: f64,
 ) -> Option<usize> {
-    if let Some(seg) = segments.get(index) {
+    if let (Some(seg), Some(neighbors_index)) = (segments.get(index), neighbors.get(index)) {
         if let Some(segment) = seg {
-            for (i, j) in [(-1, 0), (0, -1), (0, 1), (1, 0)].iter() {
-                for k in 0..2 {
-                    if let Some(prev_index) = index.checked_add_signed(
-                        i * 2 * (nb_cols as isize) + 2 * j + k - (index as isize % 2),
-                    ) {
-                        if !visited[prev_index] {
-                            if let Some(prev_seg) = segments.get(prev_index) {
-                                if let Some(prev_segment) = prev_seg {
-                                    if prev_segment.1.close(&segment.0, tol) {
-                                        return Some(prev_index);
-                                    }
-                                }
+            for &prev_index in neighbors_index {
+                if !visited[prev_index] {
+                    if let Some(prev_seg) = segments.get(prev_index) {
+                        if let Some(prev_segment) = prev_seg {
+                            if prev_segment.1.close(&segment.0, tol) {
+                                return Some(prev_index);
                             }
                         }
                     }
