@@ -544,11 +544,11 @@ fn marching_squares(
     }
 }
 
+// Marching squares algorithm
 #[pymodule]
 fn marchingsquares(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_class::<Point>()?;
     m.add_function(wrap_pyfunction!(get_contour_segments, m)?)?;
-    // Marching squares algorithm
     m.add_function(wrap_pyfunction!(marching_squares, m)?)?;
     Ok(())
 }
