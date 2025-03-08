@@ -29,6 +29,7 @@ impl Point {
     }
 
     #[staticmethod]
+    #[inline]
     fn top(r: usize, c: usize, ul: f64, ur: f64, level: f64) -> Point {
         Point {
             x: r as f64,
@@ -37,6 +38,7 @@ impl Point {
     }
 
     #[staticmethod]
+    #[inline]
     fn bottom(r: usize, c: usize, ll: f64, lr: f64, level: f64) -> Point {
         Point {
             x: r as f64,
@@ -45,6 +47,7 @@ impl Point {
     }
 
     #[staticmethod]
+    #[inline]
     fn left(r: usize, c: usize, ul: f64, ll: f64, level: f64) -> Point {
         Point {
             x: r as f64 + get_fraction(ul, ll, level),
@@ -53,6 +56,7 @@ impl Point {
     }
 
     #[staticmethod]
+    #[inline]
     fn right(r: usize, c: usize, ur: f64, lr: f64, level: f64) -> Point {
         Point {
             x: r as f64 + get_fraction(ur, lr, level),
@@ -69,200 +73,246 @@ fn get_contour_segments(
     vertex_connect_high: bool,
     mask: Option<Vec<Vec<bool>>>,
 ) -> Vec<(Point, Point)> {
-    _get_contour_segments(array, level, vertex_connect_high, mask)
+    _get_contour_segments(&array, level, vertex_connect_high, mask.as_ref())
         .into_iter()
         .filter_map(|s| s)
         .collect()
 }
 
 fn _get_contour_segments(
-    array: Vec<Vec<f64>>,
+    array: &Vec<Vec<f64>>,
     level: f64,
     vertex_connect_high: bool,
-    mask: Option<Vec<Vec<bool>>>,
+    mask: Option<&Vec<Vec<bool>>>,
 ) -> Vec<Option<(Point, Point)>> {
     let nb_rows = array.len();
-    if let Some(m) = mask.as_ref() {
-        assert!(
-            nb_rows == m.len(),
-            "The array and the mask are not compatible"
-        );
-    }
     let nb_cols = match array.get(0) {
         Some(first_row) => first_row.len(),
         None => 0,
     };
+    if let Some(m) = mask {
+        let mask_nb_cols = match m.get(0) {
+            Some(mask_row) => mask_row.len(),
+            None => 0,
+        };
+        assert_eq!(
+            (nb_rows, nb_cols),
+            (m.len(), mask_nb_cols),
+            "The array and the mask must have the same shape"
+        );
+    }
     let mut segments: Vec<Option<(Point, Point)>> = Vec::with_capacity(2 * nb_rows * nb_cols);
-    let mut iter_array = array.iter().enumerate().peekable();
-    let mut iter_mask = mask.into_iter().flatten().peekable();
-    while let Some((r0, current_row)) = iter_array.next() {
-        if let Some((r1, next_row)) = iter_array.peek() {
-            let mut current_row_iter = current_row.iter().enumerate().peekable();
-            let mut next_row_iter = next_row.iter().peekable();
-            let mut mask_current_row_iter = iter_mask.next().into_iter().flatten().peekable();
-            let mut mask_next_row_iter = iter_mask.peek().into_iter().flatten().peekable();
-            while let Some((c0, &ul)) = current_row_iter.next() {
-                if let Some((c1, &ur)) = current_row_iter.peek() {
-                    if let (Some(&ll), Some(&&lr)) = (next_row_iter.next(), next_row_iter.peek()) {
-                        if let (Some(mask_ul), Some(&mask_ll)) =
-                            (mask_current_row_iter.next(), mask_next_row_iter.next())
-                        {
-                            if let (Some(&mask_ur), Some(&&mask_lr)) =
-                                (mask_current_row_iter.peek(), mask_next_row_iter.peek())
-                            {
-                                if !(mask_ul && mask_ur && mask_ll && mask_lr) {
-                                    continue;
-                                }
-                            }
-                        }
-                        let square_case = 1 * (ul > level) as u8
-                            | 2 * (ur > level) as u8
-                            | 4 * (ll > level) as u8
-                            | 8 * (lr > level) as u8;
-                        match square_case {
-                            1 => {
-                                segments.push(Some((
-                                    Point::top(r0, c0, ul, ur, level),
-                                    Point::left(r0, c0, ul, ll, level),
-                                )));
-                                segments.push(None)
-                            }
-                            2 => {
-                                segments.push(Some((
-                                    Point::right(r0, *c1, ur, lr, level),
-                                    Point::top(r0, c0, ul, ur, level),
-                                )));
-                                segments.push(None)
-                            }
-                            3 => {
-                                segments.push(Some((
-                                    Point::right(r0, *c1, ur, lr, level),
-                                    Point::left(r0, c0, ul, ll, level),
-                                )));
-                                segments.push(None)
-                            }
-                            4 => {
-                                segments.push(Some((
-                                    Point::left(r0, c0, ul, ll, level),
-                                    Point::bottom(*r1, c0, ll, lr, level),
-                                )));
-                                segments.push(None)
-                            }
-                            5 => {
-                                segments.push(Some((
-                                    Point::top(r0, c0, ul, ur, level),
-                                    Point::bottom(*r1, c0, ll, lr, level),
-                                )));
-                                segments.push(None)
-                            }
-                            6 => {
-                                if vertex_connect_high {
-                                    segments.push(Some((
-                                        Point::left(r0, c0, ul, ll, level),
-                                        Point::top(r0, c0, ul, ur, level),
-                                    )));
-                                    segments.push(Some((
-                                        Point::right(r0, *c1, ur, lr, level),
-                                        Point::bottom(*r1, c0, ll, lr, level),
-                                    )));
-                                } else {
-                                    segments.push(Some((
-                                        Point::right(r0, *c1, ur, lr, level),
-                                        Point::top(r0, c0, ul, ur, level),
-                                    )));
-                                    segments.push(Some((
-                                        Point::left(r0, c0, ul, ll, level),
-                                        Point::bottom(*r1, c0, ll, lr, level),
-                                    )));
-                                }
-                            }
-                            7 => {
-                                segments.push(Some((
-                                    Point::right(r0, *c1, ur, lr, level),
-                                    Point::bottom(*r1, c0, ll, lr, level),
-                                )));
-                                segments.push(None)
-                            }
-                            8 => {
-                                segments.push(Some((
-                                    Point::bottom(*r1, c0, ll, lr, level),
-                                    Point::right(r0, *c1, ur, lr, level),
-                                )));
-                                segments.push(None)
-                            }
-                            9 => {
-                                if vertex_connect_high {
-                                    segments.push(Some((
-                                        Point::top(r0, c0, ul, ur, level),
-                                        Point::right(r0, *c1, ur, lr, level),
-                                    )));
-                                    segments.push(Some((
-                                        Point::bottom(*r1, c0, ll, lr, level),
-                                        Point::left(r0, c0, ul, ll, level),
-                                    )));
-                                } else {
-                                    segments.push(Some((
-                                        Point::top(r0, c0, ul, ur, level),
-                                        Point::left(r0, c0, ul, ll, level),
-                                    )));
-                                    segments.push(Some((
-                                        Point::bottom(*r1, c0, ll, lr, level),
-                                        Point::right(r0, *c1, ur, lr, level),
-                                    )));
-                                }
-                            }
-                            10 => {
-                                segments.push(Some((
-                                    Point::bottom(*r1, c0, ll, lr, level),
-                                    Point::top(r0, c0, ul, ur, level),
-                                )));
-                                segments.push(None)
-                            }
-                            11 => {
-                                segments.push(Some((
-                                    Point::bottom(*r1, c0, ll, lr, level),
-                                    Point::left(r0, c0, ul, ll, level),
-                                )));
-                                segments.push(None)
-                            }
-                            12 => {
-                                segments.push(Some((
-                                    Point::left(r0, c0, ul, ll, level),
-                                    Point::right(r0, *c1, ur, lr, level),
-                                )));
-                                segments.push(None)
-                            }
-                            13 => {
-                                segments.push(Some((
-                                    Point::top(r0, c0, ul, ur, level),
-                                    Point::right(r0, *c1, ur, lr, level),
-                                )));
-                                segments.push(None)
-                            }
-                            14 => {
-                                segments.push(Some((
-                                    Point::left(r0, c0, ul, ll, level),
-                                    Point::top(r0, c0, ul, ur, level),
-                                )));
-                                segments.push(None)
-                            }
-                            0 | 15 => {
-                                segments.push(None);
-                                segments.push(None);
-                            } // No segments pass through the square
-                            other_case => panic!("Unexpected case: {}", other_case),
-                        }
-                    } else {
-                        panic!(
-                            "The number of columns of the row {} is different of the row {}",
-                            r0, r1
-                        );
-                    }
+    for r0 in 0..(array.len() - 1) {
+        let current_row = array
+            .get(r0)
+            .expect("The iterator should be bound by the length of the array");
+        assert_eq!(
+            current_row.len(),
+            nb_cols,
+            "The array don't have the same number of columns. The row {} has {} instead of {}",
+            r0,
+            current_row.len(),
+            nb_cols
+        );
+        let r1 = r0 + 1;
+        let next_row = array
+            .get(r1)
+            .expect("The iterator should end one row before the end");
+        assert_eq!(
+            next_row.len(),
+            nb_cols,
+            "The array don't have the same number of columns. The row {} has {} instead of {}",
+            r1,
+            next_row.len(),
+            nb_cols
+        );
+        let (current_row_mask, next_row_mask) = match mask {
+            Some(m) => (
+                Some(
+                    m.get(r0)
+                        .expect("The mask should have the same number of rows as the array"),
+                ),
+                Some(
+                    m.get(r1)
+                        .expect("The mask should have the same number of rows as the array"),
+                ),
+            ),
+            None => (None, None),
+        };
+        for c0 in 0..(nb_cols - 1) {
+            let c1 = c0 + 1;
+            let ul = current_row
+                .get(c0)
+                .expect("The iterator should be bound by the number of columns of the array");
+            let ll = next_row
+                .get(c0)
+                .expect("The iterator should be bound by the number of columns of the array");
+            let ur = current_row
+                .get(c1)
+                .expect("The iterator should end one column before the end");
+            let lr = next_row
+                .get(c1)
+                .expect("The iterator should end one column before the end");
+            if let (Some(cr_mask), Some(nr_mask)) = (current_row_mask, next_row_mask) {
+                let mask_ul = cr_mask
+                    .get(c0)
+                    .expect("The iterator should be bound by the number of columns of the array");
+                let mask_ll = nr_mask
+                    .get(c0)
+                    .expect("The iterator should be bound by the number of columns of the array");
+                let mask_ur = cr_mask
+                    .get(c1)
+                    .expect("The iterator should end one column before the end");
+                let mask_lr = nr_mask
+                    .get(c1)
+                    .expect("The iterator should end one column before the end");
+                if !(*mask_ul && *mask_ll && *mask_ur && *mask_lr) {
+                    segments.push(None);
+                    segments.push(None);
+                    continue;
                 }
             }
-            segments.push(None);
-            segments.push(None);
+            let square_case = 1 * u8::from(*ul > level) as u8
+                | 2 * (*ur > level) as u8
+                | 4 * (*ll > level) as u8
+                | 8 * (*lr > level) as u8;
+            match square_case {
+                1 => {
+                    segments.push(Some((
+                        Point::top(r0, c0, *ul, *ur, level),
+                        Point::left(r0, c0, *ul, *ll, level),
+                    )));
+                    segments.push(None)
+                }
+                2 => {
+                    segments.push(Some((
+                        Point::right(r0, c1, *ur, *lr, level),
+                        Point::top(r0, c0, *ul, *ur, level),
+                    )));
+                    segments.push(None)
+                }
+                3 => {
+                    segments.push(Some((
+                        Point::right(r0, c1, *ur, *lr, level),
+                        Point::left(r0, c0, *ul, *ll, level),
+                    )));
+                    segments.push(None)
+                }
+                4 => {
+                    segments.push(Some((
+                        Point::left(r0, c0, *ul, *ll, level),
+                        Point::bottom(r1, c0, *ll, *lr, level),
+                    )));
+                    segments.push(None)
+                }
+                5 => {
+                    segments.push(Some((
+                        Point::top(r0, c0, *ul, *ur, level),
+                        Point::bottom(r1, c0, *ll, *lr, level),
+                    )));
+                    segments.push(None)
+                }
+                6 => {
+                    if vertex_connect_high {
+                        segments.push(Some((
+                            Point::left(r0, c0, *ul, *ll, level),
+                            Point::top(r0, c0, *ul, *ur, level),
+                        )));
+                        segments.push(Some((
+                            Point::right(r0, c1, *ur, *lr, level),
+                            Point::bottom(r1, c0, *ll, *lr, level),
+                        )));
+                    } else {
+                        segments.push(Some((
+                            Point::right(r0, c1, *ur, *lr, level),
+                            Point::top(r0, c0, *ul, *ur, level),
+                        )));
+                        segments.push(Some((
+                            Point::left(r0, c0, *ul, *ll, level),
+                            Point::bottom(r1, c0, *ll, *lr, level),
+                        )));
+                    }
+                }
+                7 => {
+                    segments.push(Some((
+                        Point::right(r0, c1, *ur, *lr, level),
+                        Point::bottom(r1, c0, *ll, *lr, level),
+                    )));
+                    segments.push(None)
+                }
+                8 => {
+                    segments.push(Some((
+                        Point::bottom(r1, c0, *ll, *lr, level),
+                        Point::right(r0, c1, *ur, *lr, level),
+                    )));
+                    segments.push(None)
+                }
+                9 => {
+                    if vertex_connect_high {
+                        segments.push(Some((
+                            Point::top(r0, c0, *ul, *ur, level),
+                            Point::right(r0, c1, *ur, *lr, level),
+                        )));
+                        segments.push(Some((
+                            Point::bottom(r1, c0, *ll, *lr, level),
+                            Point::left(r0, c0, *ul, *ll, level),
+                        )));
+                    } else {
+                        segments.push(Some((
+                            Point::top(r0, c0, *ul, *ur, level),
+                            Point::left(r0, c0, *ul, *ll, level),
+                        )));
+                        segments.push(Some((
+                            Point::bottom(r1, c0, *ll, *lr, level),
+                            Point::right(r0, c1, *ur, *lr, level),
+                        )));
+                    }
+                }
+                10 => {
+                    segments.push(Some((
+                        Point::bottom(r1, c0, *ll, *lr, level),
+                        Point::top(r0, c0, *ul, *ur, level),
+                    )));
+                    segments.push(None)
+                }
+                11 => {
+                    segments.push(Some((
+                        Point::bottom(r1, c0, *ll, *lr, level),
+                        Point::left(r0, c0, *ul, *ll, level),
+                    )));
+                    segments.push(None)
+                }
+                12 => {
+                    segments.push(Some((
+                        Point::left(r0, c0, *ul, *ll, level),
+                        Point::right(r0, c1, *ur, *lr, level),
+                    )));
+                    segments.push(None)
+                }
+                13 => {
+                    segments.push(Some((
+                        Point::top(r0, c0, *ul, *ur, level),
+                        Point::right(r0, c1, *ur, *lr, level),
+                    )));
+                    segments.push(None)
+                }
+                14 => {
+                    segments.push(Some((
+                        Point::left(r0, c0, *ul, *ll, level),
+                        Point::top(r0, c0, *ul, *ur, level),
+                    )));
+                    segments.push(None)
+                }
+                0 | 15 => {
+                    // No segments pass through the square
+                    segments.push(None);
+                    segments.push(None);
+                }
+                other_case => unreachable!("Unexpected case: {}", other_case),
+            }
         }
+        segments.push(None);
+        segments.push(None);
     }
     for _ in 0..nb_cols {
         segments.push(None);
@@ -457,7 +507,7 @@ fn marching_squares(
         Some(a) => a.len(),
         None => 0,
     };
-    let mut segments = _get_contour_segments(array, level, is_fully_connected, mask);
+    let mut segments = _get_contour_segments(&array, level, is_fully_connected, mask.as_ref());
     assert_eq!(segments.len(), 2 * nb_rows * nb_cols);
     return assemble_contours(&mut segments, nb_cols, tol);
 }
