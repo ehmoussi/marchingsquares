@@ -73,18 +73,19 @@ def array() -> NDArray[np.float64]:
 
 def test_get_contour_segments(array: NDArray[np.float64]) -> None:
     segments_ref = _get_contour_segments(array, 0.5, False, None)
-    segments = marchingsquares.get_contour_segments(
-        array.flatten().tolist(), (array.shape[0], array.shape[1]), level=0.5
-    )
+    segments = np.array(
+        marchingsquares.get_contour_segments(
+            array.flatten().tolist(), (array.shape[0], array.shape[1]), level=0.5
+        )
+    ).reshape(-1, 4)
     assert len(segments) == len(
         segments_ref
     ), f"The number of segments is different {len(segments)}!={len(segments_ref)}"
     for segment, segment_ref in zip(segments, segments_ref):
-        for point, point_ref_v in zip(segment, segment_ref):
-            point_ref = marchingsquares.Point.new(point_ref_v[0], point_ref_v[1])
-            assert point.close(
-                point_ref, 1e-16
-            ), f"({point.x}, {point.y}) != ({point_ref.x}, {point_ref.y})"
+        for point, point_ref in zip(segment.reshape(2, 2), segment_ref):
+            assert marchingsquares.close(
+                point[0], point[1], point_ref[0], point_ref[1], 1e-16
+            ), f"({point[0]}, {point[1]}) != ({point_ref[0]}, {point_ref[1]})"
 
 
 def test_marching_squares(array: NDArray[np.float64]) -> None:
@@ -97,11 +98,10 @@ def test_marching_squares(array: NDArray[np.float64]) -> None:
     ), f"The number of contours is different {len(contours)}!={len(contours_ref)}"
     for index, (contour, contour_ref) in enumerate(zip(contours, contours_ref)):
         assert len(contour) == len(contour_ref)
-        for point, point_ref_v in zip(contour, contour_ref):
-            point_ref = marchingsquares.Point.new(point_ref_v[0], point_ref_v[1])
-            assert point.close(
-                point_ref, 1e-16
-            ), f"({point.x}, {point.y}) != ({point_ref.x}, {point_ref.y}) in contour {index}"
+        for point, point_ref in zip(contour, contour_ref):
+            assert marchingsquares.close(
+                point[0], point[1], point_ref[0], point_ref[1], 1e-16
+            ), f"({point[0]}, {point[1]}) != ({point_ref[0]}, {point_ref[1]})"
 
 
 @pytest.fixture(scope="module")
@@ -121,15 +121,15 @@ def test_get_contour_segments_random(random_array: NDArray[np.float64]) -> None:
             (random_array.shape[0], random_array.shape[1]),
             level=0.5,
         )
-    assert len(segments) == len(
+    segments_a = np.array(segments).reshape(-1, 4)
+    assert len(segments_a) == len(
         segments_ref
     ), f"The number of segments is different {len(segments)}!={len(segments_ref)}"
-    for segment, segment_ref in zip(segments, segments_ref):
-        for point, point_ref_v in zip(segment, segment_ref):
-            point_ref = marchingsquares.Point.new(point_ref_v[0], point_ref_v[1])
-            assert point.close(
-                point_ref, 1e-16
-            ), f"({point.x}, {point.y}) != ({point_ref.x}, {point_ref.y})"
+    for segment, segment_ref in zip(segments_a, segments_ref):
+        for point, point_ref in zip(segment.reshape(2, 2), segment_ref):
+            assert marchingsquares.close(
+                point[0], point[1], point_ref[0], point_ref[1], 1e-16
+            ), f"({point[0]}, {point[1]}) != ({point_ref[0]}, {point_ref[1]})"
 
 
 def test_marching_squares_random(random_array: NDArray[np.float64]) -> None:
@@ -148,11 +148,10 @@ def test_marching_squares_random(random_array: NDArray[np.float64]) -> None:
     ), f"The number of contours is different {len(contours)}!={len(contours_ref)}"
     for contour, contour_ref in zip(contours, contours_ref):
         assert len(contour) == len(contour_ref)
-        for point, point_ref_v in zip(contour, contour_ref):
-            point_ref = marchingsquares.Point.new(point_ref_v[0], point_ref_v[1])
-            assert point.close(
-                point_ref, 1e-10
-            ), f"({point.x}, {point.y}) != ({point_ref.x}, {point_ref.y})"
+        for point, point_ref in zip(contour, contour_ref):
+            assert marchingsquares.close(
+                point[0], point[1], point_ref[0], point_ref[1], 1e-16
+            ), f"({point[0]}, {point[1]}) != ({point_ref[0]}, {point_ref[1]})"
 
 
 @pytest.fixture(scope="module")
@@ -179,15 +178,15 @@ def test_get_contour_segments_random_with_mask(
             level=0.5,
             mask=flatten_random_mask,
         )
-    assert len(segments) == len(
+    segments_a = np.array(segments).reshape(-1, 4)
+    assert len(segments_a) == len(
         segments_ref
-    ), f"The number of segments is different {len(segments)}!={len(segments_ref)}"
-    for segment, segment_ref in zip(segments, segments_ref):
-        for point, point_ref_v in zip(segment, segment_ref):
-            point_ref = marchingsquares.Point.new(point_ref_v[0], point_ref_v[1])
-            assert point.close(
-                point_ref, 1e-16
-            ), f"({point.x}, {point.y}) != ({point_ref.x}, {point_ref.y})"
+    ), f"The number of segments is different {len(segments_a)}!={len(segments_ref)}"
+    for segment, segment_ref in zip(segments_a, segments_ref):
+        for point, point_ref in zip(segment.reshape(2, 2), segment_ref):
+            assert marchingsquares.close(
+                point[0], point[1], point_ref[0], point_ref[1], 1e-16
+            ), f"({point[0]}, {point[1]}) != ({point_ref[0]}, {point_ref[1]})"
 
 
 def test_marching_squares_random_with_mask(
@@ -210,11 +209,10 @@ def test_marching_squares_random_with_mask(
     ), f"The number of contours is different {len(contours)}!={len(contours_ref)}"
     for contour, contour_ref in zip(contours, contours_ref):
         assert len(contour) == len(contour_ref)
-        for point, point_ref_v in zip(contour, contour_ref):
-            point_ref = marchingsquares.Point.new(point_ref_v[0], point_ref_v[1])
-            assert point.close(
-                point_ref, 1e-10
-            ), f"({point.x}, {point.y}) != ({point_ref.x}, {point_ref.y})"
+        for point, point_ref in zip(contour, contour_ref):
+            assert marchingsquares.close(
+                point[0], point[1], point_ref[0], point_ref[1], 1e-16
+            ), f"({point[0]}, {point[1]}) != ({point_ref[0]}, {point_ref[1]})"
 
 
 def test_marching_squares_with_incorrect_mask_size(
