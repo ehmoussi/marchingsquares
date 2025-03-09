@@ -134,10 +134,10 @@ def test_marching_squares_with_mask(random_array: NDArray[np.float64]) -> None:
     contours = marchingsquares.marching_squares(
         random_array, level=0.5, tol=1e-16, mask=mask
     )
+    end = time.perf_counter_ns()
     start_ref = time.perf_counter_ns()
     contours_ref = find_contours(random_array, 0.5, mask=mask)
     end_ref = time.perf_counter_ns()
-    end = time.perf_counter_ns()
     print(
         f"\ntime_ref: {(end_ref - start_ref) * 1e-6} ms\ntime: {(end - start) * 1e-6} ms"
     )

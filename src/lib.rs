@@ -357,18 +357,25 @@ fn assemble_contours(
     let mut contours = Vec::with_capacity(segments.len());
     let mut visited = vec![false; segments.len()];
     let mut neighbors = Vec::with_capacity(segments.len());
-    for index in 0..segments.len() {
-        let mut neighbors_index = Vec::with_capacity(8);
-        for (i, j) in [(-1, 0), (0, -1), (0, 1), (1, 0)].iter() {
-            for k in 0..2 {
-                if let Some(neighbor_index) = index.checked_add_signed(
-                    i * 2 * (nb_cols as isize) + 2 * j + k - (index as isize % 2),
-                ) {
-                    neighbors_index.push(neighbor_index);
+    for (index, segment) in segments.iter().enumerate() {
+        match segment {
+            Some(_) => {
+                let mut neighbors_index = Vec::with_capacity(8);
+                for (i, j) in [(-1, 0), (0, -1), (0, 1), (1, 0)].iter() {
+                    for k in 0..2 {
+                        if let Some(neighbor_index) = index.checked_add_signed(
+                            i * 2 * (nb_cols as isize) + 2 * j + k - (index as isize % 2),
+                        ) {
+                            neighbors_index.push(neighbor_index);
+                        }
+                    }
                 }
+                neighbors.push(Some(neighbors_index));
+            }
+            None => {
+                neighbors.push(None);
             }
         }
-        neighbors.push(neighbors_index);
     }
     for first_index in 0..segments.len() {
         if segments[first_index].is_none() {
@@ -473,12 +480,12 @@ fn assemble_contours(
 fn find_next_segment(
     segments: &Vec<Option<(Point, Point)>>,
     visited: &Vec<bool>,
-    neighbors: &Vec<Vec<usize>>,
+    neighbors: &Vec<Option<Vec<usize>>>,
     index: usize,
     tol: f64,
 ) -> Option<usize> {
-    if let (Some(seg), Some(neighbors_index)) = (segments.get(index), neighbors.get(index)) {
-        if let Some(segment) = seg {
+    if let (Some(seg), Some(n_index)) = (segments.get(index), neighbors.get(index)) {
+        if let (Some(segment), Some(neighbors_index)) = (seg, n_index) {
             for &next_index in neighbors_index {
                 if !visited[next_index] {
                     if let Some(next_seg) = segments.get(next_index) {
@@ -499,12 +506,12 @@ fn find_next_segment(
 fn find_previous_segment(
     segments: &Vec<Option<(Point, Point)>>,
     visited: &Vec<bool>,
-    neighbors: &Vec<Vec<usize>>,
+    neighbors: &Vec<Option<Vec<usize>>>,
     index: usize,
     tol: f64,
 ) -> Option<usize> {
-    if let (Some(seg), Some(neighbors_index)) = (segments.get(index), neighbors.get(index)) {
-        if let Some(segment) = seg {
+    if let (Some(seg), Some(n_index)) = (segments.get(index), neighbors.get(index)) {
+        if let (Some(segment), Some(neighbors_index)) = (seg, n_index) {
             for &prev_index in neighbors_index {
                 if !visited[prev_index] {
                     if let Some(prev_seg) = segments.get(prev_index) {
