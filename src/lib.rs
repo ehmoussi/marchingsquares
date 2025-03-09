@@ -220,137 +220,130 @@ fn marching_square(
 }
 
 #[pyfunction]
-#[pyo3(signature=(array, level, vertex_connect_high=false, mask=None))]
+#[pyo3(signature=(array, shape, level, vertex_connect_high=false, mask=None))]
 fn get_contour_segments(
-    array: Vec<Vec<f64>>,
+    array: Vec<f64>,
+    shape: (usize, usize),
     level: f64,
     vertex_connect_high: bool,
-    mask: Option<Vec<Vec<bool>>>,
+    mask: Option<Vec<bool>>,
 ) -> PyResult<Vec<(Point, Point)>> {
-    match _get_contour_segments(&array, level, vertex_connect_high, mask.as_ref()) {
+    let grid_mask =
+        &to_grid_mask(mask.as_ref(), &array, shape.0, shape.1).map_err(PyValueError::new_err)?;
+    match _get_contour_segments(
+        &array,
+        shape.0,
+        shape.1,
+        level,
+        vertex_connect_high,
+        grid_mask,
+    ) {
         Ok((segments, _)) => Ok(segments),
         Err(msg) => Err(PyValueError::new_err(msg)),
     }
 }
 
+#[inline]
+fn to_grid_mask(
+    mask: Option<&Vec<bool>>,
+    array: &Vec<f64>,
+    nb_rows: usize,
+    nb_cols: usize,
+) -> Result<Vec<u8>, String> {
+    let mut grid_mask = vec![1; (nb_rows - 1) * (nb_cols - 1)];
+    match mask {
+        Some(mask) => {
+            if array.len() != mask.len() {
+                return Err(format!(
+            "The array and the mask must have the same length, {array_len:?} != {mask_len:?}",
+            array_len = array.len(),
+            mask_len = mask.len(),
+        ));
+            }
+            for r0 in 0..(nb_rows - 1) {
+                let r1 = r0 + 1;
+                for c0 in 0..(nb_cols - 1) {
+                    let c1 = c0 + 1;
+                    unsafe {
+                        grid_mask[r0 * (nb_cols - 1) + c0] = *mask.get_unchecked(r0 * nb_cols + c0)
+                            as u8
+                            * *mask.get_unchecked(r0 * nb_cols + c1) as u8
+                            * *mask.get_unchecked(r1 * nb_cols + c0) as u8
+                            * *mask.get_unchecked(r1 * nb_cols + c1) as u8;
+                    }
+                }
+            }
+        }
+        None => (),
+    }
+    Ok(grid_mask)
+}
+
 fn _get_contour_segments(
-    array: &Vec<Vec<f64>>,
+    array: &Vec<f64>,
+    nb_rows: usize,
+    nb_cols: usize,
     level: f64,
     vertex_connect_high: bool,
-    mask: Option<&Vec<Vec<bool>>>,
+    grid_mask: &Vec<u8>,
 ) -> Result<(Vec<(Point, Point)>, Vec<Option<usize>>), String> {
-    let nb_rows = array.len();
-    let nb_cols = match array.get(0) {
-        Some(first_row) => first_row.len(),
-        None => 0,
-    };
-    if let Some(m) = mask {
-        let mask_nb_cols = match m.get(0) {
-            Some(mask_row) => mask_row.len(),
-            None => 0,
-        };
-        let array_shape = (nb_rows, nb_cols);
-        let mask_shape = (m.len(), mask_nb_cols);
-        if array_shape != mask_shape {
-            return Err(format!(
-            "The array and the mask must have the same shape, {array_shape:?} != {mask_shape:?}",
+    if array.len() != nb_rows * nb_cols {
+        return Err(format!(
+            "The array and the given shape are incompatible: {array_len:?} != ({nb_rows} * {nb_cols})",
+            array_len = array.len(),
         ));
-        }
     }
     let mut segments: Vec<(Point, Point)> = Vec::with_capacity(2 * nb_rows * nb_cols);
     let mut indices = vec![None; 2 * nb_rows * nb_cols];
     let mut current_index: usize = 0;
-    for r0 in 0..(array.len() - 1) {
-        let current_row = array
-            .get(r0)
-            .expect("The iterator should be bound by the length of the array");
-        if current_row.len() != nb_cols {
-            return Err(format!(
-                "The array don't have the same number of columns. The row {r0} has {current_row_nb_cols} instead of {nb_cols} columns",
-                current_row_nb_cols=current_row.len(),
-            ));
-        }
+    for r0 in 0..(nb_rows - 1) {
         let r1 = r0 + 1;
-        let next_row = array
-            .get(r1)
-            .expect("The iterator should end one row before the end");
-        if next_row.len() != nb_cols {
-            return Err(format!(
-                "The array don't have the same number of columns. The row {r1} has {next_row_nb_cols} instead of {nb_cols} columns",
-                next_row_nb_cols=next_row.len(),
-            ));
-        }
-        let (current_row_mask, next_row_mask) = match mask {
-            Some(m) => (
-                Some(
-                    m.get(r0)
-                        .expect("The mask should have the same number of rows as the array"),
-                ),
-                Some(
-                    m.get(r1)
-                        .expect("The mask should have the same number of rows as the array"),
-                ),
-            ),
-            None => (None, None),
-        };
         for c0 in 0..(nb_cols - 1) {
             let c1 = c0 + 1;
-            let ul = current_row
-                .get(c0)
-                .expect("The iterator should be bound by the number of columns of the array");
-            let ll = next_row
-                .get(c0)
-                .expect("The iterator should be bound by the number of columns of the array");
-            let ur = current_row
-                .get(c1)
-                .expect("The iterator should end one column before the end");
-            let lr = next_row
-                .get(c1)
-                .expect("The iterator should end one column before the end");
-            if let (Some(cr_mask), Some(nr_mask)) = (current_row_mask, next_row_mask) {
-                let mask_ul = cr_mask
-                    .get(c0)
-                    .expect("The iterator should be bound by the number of columns of the array");
-                let mask_ll = nr_mask
-                    .get(c0)
-                    .expect("The iterator should be bound by the number of columns of the array");
-                let mask_ur = cr_mask
-                    .get(c1)
-                    .expect("The iterator should end one column before the end");
-                let mask_lr = nr_mask
-                    .get(c1)
-                    .expect("The iterator should end one column before the end");
-                if !(*mask_ul && *mask_ll && *mask_ur && *mask_lr) {
-                    current_index += 2;
-                    continue;
+            let ul_index = r0 * nb_cols + c0;
+            let ur_index = r0 * nb_cols + c1;
+            let ll_index = r1 * nb_cols + c0;
+            let lr_index = r1 * nb_cols + c1;
+            let (ul, ll, ur, lr): (f64, f64, f64, f64);
+            let is_masked: bool;
+            unsafe {
+                ul = *array.get_unchecked(ul_index);
+                // .expect("The iterator should be bound by the number of columns of the array");
+                ll = *array.get_unchecked(ll_index);
+                // .expect("The iterator should be bound by the number of columns of the array");
+                ur = *array.get_unchecked(ur_index);
+                // .expect("The iterator should end one column before the end");
+                lr = *array.get_unchecked(lr_index);
+                // .expect("The iterator should end one column before the end");
+                is_masked = *grid_mask.get_unchecked(r0 * (nb_cols - 1) + c0) == 0;
+            }
+            match is_masked {
+                true => current_index += 2,
+                false => {
+                    let (seg_1, seg_2) =
+                        marching_square(r0, c0, r1, c1, ul, ur, ll, lr, level, vertex_connect_high);
+                    // Segment 1
+                    if let Some(segment_1) = seg_1 {
+                        indices[current_index] = Some(segments.len());
+                        segments.push(segment_1);
+                    }
+                    current_index += 1;
+                    // Segment 2
+                    if let Some(segment_2) = seg_2 {
+                        indices[current_index] = Some(segments.len());
+                        segments.push(segment_2);
+                    }
+                    current_index += 1;
                 }
             }
-            let (seg_1, seg_2) = marching_square(
-                r0,
-                c0,
-                r1,
-                c1,
-                *ul,
-                *ur,
-                *ll,
-                *lr,
-                level,
-                vertex_connect_high,
-            );
-            if let Some(segment_1) = seg_1 {
-                indices[current_index] = Some(segments.len());
-                segments.push(segment_1);
-            }
-            current_index += 1;
-            if let Some(segment_2) = seg_2 {
-                indices[current_index] = Some(segments.len());
-                segments.push(segment_2);
-            }
-            current_index += 1;
         }
+        // add the last column
         current_index += 2;
     }
-    assert_eq!(current_index + 2 * nb_cols, 2 * nb_rows * nb_cols);
+    assert_eq!(
+        current_index + 2 * nb_cols, // add the last row
+        2 * nb_rows * nb_cols
+    );
     Ok((segments, indices))
 }
 
@@ -498,26 +491,31 @@ fn find_previous_segment(
 }
 
 #[pyfunction]
-#[pyo3(signature=(array, level, is_fully_connected=false, mask=None, tol=1e-10))]
+#[pyo3(signature=(array, shape, level, is_fully_connected=false, mask=None, tol=1e-10))]
 fn marching_squares(
-    array: Vec<Vec<f64>>,
+    array: Vec<f64>,
+    shape: (usize, usize),
     level: f64,
     is_fully_connected: bool,
-    mask: Option<Vec<Vec<bool>>>,
+    mask: Option<Vec<bool>>,
     tol: f64,
 ) -> PyResult<Vec<Vec<Point>>> {
-    let nb_rows = array.len();
-    let nb_cols = match array.get(0) {
-        Some(a) => a.len(),
-        None => 0,
-    };
-    match _get_contour_segments(&array, level, is_fully_connected, mask.as_ref()) {
-        Ok((segments, indices)) => {
-            debug_assert_eq!(indices.len(), 2 * nb_rows * nb_cols);
-            Ok(assemble_contours(&segments, &indices, nb_cols, tol))
-        }
-        Err(msg) => Err(PyValueError::new_err(msg)),
-    }
+    let (nb_rows, nb_cols) = shape;
+    let grid_mask =
+        to_grid_mask(mask.as_ref(), &array, nb_rows, nb_cols).map_err(PyValueError::new_err)?;
+    _get_contour_segments(
+        &array,
+        shape.0,
+        shape.1,
+        level,
+        is_fully_connected,
+        &grid_mask,
+    )
+    .map_err(PyValueError::new_err)
+    .map(|(segments, indices)| {
+        debug_assert_eq!(indices.len(), 2 * nb_rows * nb_cols);
+        assemble_contours(&segments, &indices, nb_cols, tol)
+    })
 }
 
 // Marching squares algorithm

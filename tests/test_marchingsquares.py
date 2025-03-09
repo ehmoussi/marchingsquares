@@ -44,8 +44,10 @@ def array() -> NDArray[np.float64]:
 
 
 def test_get_contour_segments(array: NDArray[np.float64]) -> None:
-    segments_ref = _get_contour_segments(np.array(array), 0.5, False, None)
-    segments = marchingsquares.get_contour_segments(array, level=0.5)
+    segments_ref = _get_contour_segments(array, 0.5, False, None)
+    segments = marchingsquares.get_contour_segments(
+        array.flatten().tolist(), (array.shape[0], array.shape[1]), level=0.5
+    )
     assert len(segments) == len(
         segments_ref
     ), f"The number of segments is different {len(segments)}!={len(segments_ref)}"
@@ -59,7 +61,9 @@ def test_get_contour_segments(array: NDArray[np.float64]) -> None:
 
 def test_marching_squares(array: NDArray[np.float64]) -> None:
     contours_ref = find_contours(np.array(array), 0.5)
-    contours = marchingsquares.marching_squares(array, level=0.5)
+    contours = marchingsquares.marching_squares(
+        array.flatten().tolist(), (array.shape[0], array.shape[1]), level=0.5
+    )
     assert len(contours) == len(
         contours_ref
     ), f"The number of contours is different {len(contours)}!={len(contours_ref)}"
@@ -84,8 +88,13 @@ def test_get_contour_segments_random(random_array: NDArray[np.float64]) -> None:
     start_ref = time.perf_counter_ns()
     segments_ref = _get_contour_segments(random_array, 0.5, False, None)
     end_ref = time.perf_counter_ns()
+    flat_random_array = random_array.flatten().tolist()
     start = time.perf_counter_ns()
-    segments = marchingsquares.get_contour_segments(random_array, level=0.5)
+    segments = marchingsquares.get_contour_segments(
+        flat_random_array,
+        (random_array.shape[0], random_array.shape[1]),
+        level=0.5,
+    )
     end = time.perf_counter_ns()
     print(
         f"\ntime_ref: {(end_ref - start_ref) * 1e-6} ms\ntime: {(end - start) * 1e-6} ms"
@@ -105,8 +114,14 @@ def test_marching_squares_random_array(random_array: NDArray[np.float64]) -> Non
     start_ref = time.perf_counter_ns()
     contours_ref = find_contours(random_array, 0.5)
     end_ref = time.perf_counter_ns()
+    flat_random_array = random_array.flatten().tolist()
     start = time.perf_counter_ns()
-    contours = marchingsquares.marching_squares(random_array, level=0.5, tol=1e-16)
+    contours = marchingsquares.marching_squares(
+        flat_random_array,
+        (random_array.shape[0], random_array.shape[1]),
+        level=0.5,
+        tol=1e-16,
+    )
     end = time.perf_counter_ns()
     print(
         f"\ntime_ref: {(end_ref - start_ref) * 1e-6} ms\ntime: {(end - start) * 1e-6} ms"
@@ -135,8 +150,14 @@ def test_get_contour_segments_random_with_mask(
     start_ref = time.perf_counter_ns()
     segments_ref = _get_contour_segments(random_array, 0.5, False, mask=mask)
     end_ref = time.perf_counter_ns()
+    flat_random_array = random_array.flatten().tolist()
     start = time.perf_counter_ns()
-    segments = marchingsquares.get_contour_segments(random_array, level=0.5, mask=mask)
+    segments = marchingsquares.get_contour_segments(
+        flat_random_array,
+        (random_array.shape[0], random_array.shape[1]),
+        level=0.5,
+        mask=mask.flatten().tolist(),
+    )
     end = time.perf_counter_ns()
     print(
         f"\ntime_ref: {(end_ref - start_ref) * 1e-6} ms\ntime: {(end - start) * 1e-6} ms"
@@ -159,9 +180,14 @@ def test_marching_squares_with_mask(random_array: NDArray[np.float64]) -> None:
         )
         < 0.1
     )
+    flat_random_array = random_array.flatten().tolist()
     start = time.perf_counter_ns()
     contours = marchingsquares.marching_squares(
-        random_array, level=0.5, tol=1e-16, mask=mask
+        flat_random_array,
+        (random_array.shape[0], random_array.shape[1]),
+        level=0.5,
+        tol=1e-16,
+        mask=mask.flatten().tolist(),
     )
     end = time.perf_counter_ns()
     start_ref = time.perf_counter_ns()
@@ -191,11 +217,17 @@ def test_marching_squares_with_incorrect_mask_size(
         )
         < 0.1
     )
-    with pytest.raises(ValueError, match="must have the same shape"):
-        marchingsquares.marching_squares(random_array, level=0.5, tol=1e-16, mask=mask)
+    with pytest.raises(ValueError, match="must have the same length"):
+        marchingsquares.marching_squares(
+            random_array.flatten().tolist(),
+            (random_array.shape[0], random_array.shape[1]),
+            level=0.5,
+            tol=1e-16,
+            mask=mask.flatten().tolist(),
+        )
 
 
 def test_bad_array_shape():
-    array = [[0, 1], [1]]
-    with pytest.raises(ValueError, match="same number of columns"):
-        marchingsquares.marching_squares(array, 0.5)
+    array = [0, 1, 1]
+    with pytest.raises(ValueError, match="given shape are incompatible"):
+        marchingsquares.marching_squares(array, (2, 2), 0.5)
