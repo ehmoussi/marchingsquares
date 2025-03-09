@@ -19,5 +19,5 @@ def marching_squares(
     is_fully_connected: bool = False,
     mask: Optional[List[bool]] = None,
     tol=1e-10,
-) -> List[List[List[float]]]:
+) -> List[List[float]]:
     pass

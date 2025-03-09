@@ -96,9 +96,9 @@ def test_marching_squares(array: NDArray[np.float64]) -> None:
     assert len(contours) == len(
         contours_ref
     ), f"The number of contours is different {len(contours)}!={len(contours_ref)}"
-    for index, (contour, contour_ref) in enumerate(zip(contours, contours_ref)):
-        assert len(contour) == len(contour_ref)
-        for point, point_ref in zip(contour, contour_ref):
+    for contour, contour_ref in zip(contours, contours_ref):
+        assert len(contour) / 2 == len(contour_ref)
+        for point, point_ref in zip(np.array(contour).reshape(-1, 2), contour_ref):
             assert marchingsquares.close(
                 point[0], point[1], point_ref[0], point_ref[1], 1e-16
             ), f"({point[0]}, {point[1]}) != ({point_ref[0]}, {point_ref[1]})"
@@ -147,8 +147,8 @@ def test_marching_squares_random(random_array: NDArray[np.float64]) -> None:
         contours_ref
     ), f"The number of contours is different {len(contours)}!={len(contours_ref)}"
     for contour, contour_ref in zip(contours, contours_ref):
-        assert len(contour) == len(contour_ref)
-        for point, point_ref in zip(contour, contour_ref):
+        assert len(contour) / 2 == len(contour_ref)
+        for point, point_ref in zip(np.array(contour).reshape(-1, 2), contour_ref):
             assert marchingsquares.close(
                 point[0], point[1], point_ref[0], point_ref[1], 1e-16
             ), f"({point[0]}, {point[1]}) != ({point_ref[0]}, {point_ref[1]})"
@@ -208,8 +208,8 @@ def test_marching_squares_random_with_mask(
         contours_ref
     ), f"The number of contours is different {len(contours)}!={len(contours_ref)}"
     for contour, contour_ref in zip(contours, contours_ref):
-        assert len(contour) == len(contour_ref)
-        for point, point_ref in zip(contour, contour_ref):
+        assert len(contour) / 2 == len(contour_ref)
+        for point, point_ref in zip(np.array(contour).reshape(-1, 2), contour_ref):
             assert marchingsquares.close(
                 point[0], point[1], point_ref[0], point_ref[1], 1e-16
             ), f"({point[0]}, {point[1]}) != ({point_ref[0]}, {point_ref[1]})"

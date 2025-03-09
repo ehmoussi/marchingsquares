@@ -316,7 +316,7 @@ fn assemble_contours(
     indices: &Vec<Option<usize>>,
     nb_cols: usize,
     tol: f64,
-) -> Vec<Vec<Vec<f64>>> {
+) -> Vec<Vec<f64>> {
     let mut contours = Vec::with_capacity(segments.len() / 4);
     let mut visited = vec![false; segments.len()];
     let mut neighbors = Vec::with_capacity(segments.len() / 4);
@@ -348,14 +348,12 @@ fn assemble_contours(
         let mut tail_index = first_index;
         let mut head_index = first_index;
         visited[first_index] = true;
-        contour.push(vec![
-            segments[4 * first_index],
-            segments[4 * first_index + 1],
-        ]);
-        contour.push(vec![
-            segments[4 * first_index + 2],
-            segments[4 * first_index + 3],
-        ]);
+        // first point
+        contour.push(segments[4 * first_index]);
+        contour.push(segments[4 * first_index + 1]);
+        // second point
+        contour.push(segments[4 * first_index + 2]);
+        contour.push(segments[4 * first_index + 3]);
         let mut nb_points = 0;
         while contour.len() > nb_points {
             nb_points = contour.len();
@@ -364,34 +362,28 @@ fn assemble_contours(
                 find_previous_segment(&segments, &visited, &neighbors, tail_index, tol),
             ) {
                 (Some(next_index), None) => {
-                    contour.push(vec![
-                        segments[4 * next_index + 2],
-                        segments[4 * next_index + 3],
-                    ]);
+                    contour.push(segments[4 * next_index + 2]);
+                    contour.push(segments[4 * next_index + 3]);
                     head_index = next_index;
                     visited[next_index] = true;
                 }
                 (None, Some(prev_index)) => {
-                    contour.insert(
-                        0,
-                        vec![segments[4 * prev_index + 0], segments[4 * prev_index + 1]],
-                    );
+                    // inserted in reverse to make x the first
+                    contour.insert(0, segments[4 * prev_index + 1]);
+                    contour.insert(0, segments[4 * prev_index + 0]);
                     tail_index = prev_index;
                     visited[prev_index] = true;
                 }
                 (Some(next_index), Some(prev_index)) => {
                     if next_index <= prev_index {
-                        contour.push(vec![
-                            segments[4 * next_index + 2],
-                            segments[4 * next_index + 3],
-                        ]);
+                        contour.push(segments[4 * next_index + 2]);
+                        contour.push(segments[4 * next_index + 3]);
                         head_index = next_index;
                         visited[next_index] = true;
                     } else {
-                        contour.insert(
-                            0,
-                            vec![segments[4 * prev_index + 0], segments[4 * prev_index + 1]],
-                        );
+                        // inserted in reverse to make x the first
+                        contour.insert(0, segments[4 * prev_index + 1]);
+                        contour.insert(0, segments[4 * prev_index + 0]);
                         tail_index = prev_index;
                         visited[prev_index] = true;
                     }
@@ -399,9 +391,7 @@ fn assemble_contours(
                 (None, None) => (),
             }
         }
-        if contour.len() > 0 {
-            contours.push(contour);
-        }
+        contours.push(contour);
     }
     return contours;
 }
@@ -495,7 +485,7 @@ fn marching_squares(
     is_fully_connected: bool,
     mask: Option<Vec<bool>>,
     tol: f64,
-) -> PyResult<Vec<Vec<Vec<f64>>>> {
+) -> PyResult<Vec<Vec<f64>>> {
     let (nb_rows, nb_cols) = shape;
     let grid_mask =
         to_grid_mask(mask.as_ref(), &array, nb_rows, nb_cols).map_err(PyValueError::new_err)?;
