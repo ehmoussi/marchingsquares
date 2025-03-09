@@ -228,7 +228,7 @@ fn get_contour_segments(
     mask: Option<Vec<Vec<bool>>>,
 ) -> PyResult<Vec<(Point, Point)>> {
     match _get_contour_segments(&array, level, vertex_connect_high, mask.as_ref()) {
-        Ok(segments) => Ok(segments.into_iter().filter_map(|s| s).collect()),
+        Ok((segments, _)) => Ok(segments),
         Err(msg) => Err(PyValueError::new_err(msg)),
     }
 }
@@ -238,7 +238,7 @@ fn _get_contour_segments(
     level: f64,
     vertex_connect_high: bool,
     mask: Option<&Vec<Vec<bool>>>,
-) -> Result<Vec<Option<(Point, Point)>>, String> {
+) -> Result<(Vec<(Point, Point)>, Vec<Option<usize>>), String> {
     let nb_rows = array.len();
     let nb_cols = match array.get(0) {
         Some(first_row) => first_row.len(),
@@ -257,7 +257,9 @@ fn _get_contour_segments(
         ));
         }
     }
-    let mut segments: Vec<Option<(Point, Point)>> = Vec::with_capacity(2 * nb_rows * nb_cols);
+    let mut segments: Vec<(Point, Point)> = Vec::with_capacity(2 * nb_rows * nb_cols);
+    let mut indices = vec![None; 2 * nb_rows * nb_cols];
+    let mut current_index: usize = 0;
     for r0 in 0..(array.len() - 1) {
         let current_row = array
             .get(r0)
@@ -319,8 +321,7 @@ fn _get_contour_segments(
                     .get(c1)
                     .expect("The iterator should end one column before the end");
                 if !(*mask_ul && *mask_ll && *mask_ur && *mask_lr) {
-                    segments.push(None);
-                    segments.push(None);
+                    current_index += 2;
                     continue;
                 }
             }
@@ -336,63 +337,63 @@ fn _get_contour_segments(
                 level,
                 vertex_connect_high,
             );
-            segments.push(seg_1);
-            segments.push(seg_2);
+            if let Some(segment_1) = seg_1 {
+                indices[current_index] = Some(segments.len());
+                segments.push(segment_1);
+            }
+            current_index += 1;
+            if let Some(segment_2) = seg_2 {
+                indices[current_index] = Some(segments.len());
+                segments.push(segment_2);
+            }
+            current_index += 1;
         }
-        segments.push(None);
-        segments.push(None);
+        current_index += 2;
     }
-    for _ in 0..nb_cols {
-        segments.push(None);
-        segments.push(None);
-    }
-    Ok(segments)
+    assert_eq!(current_index + 2 * nb_cols, 2 * nb_rows * nb_cols);
+    Ok((segments, indices))
 }
 
 fn assemble_contours(
-    segments: &Vec<Option<(Point, Point)>>,
+    segments: &Vec<(Point, Point)>,
+    indices: &Vec<Option<usize>>,
     nb_cols: usize,
     tol: f64,
 ) -> Vec<Vec<Point>> {
     let mut contours = Vec::with_capacity(segments.len());
     let mut visited = vec![false; segments.len()];
     let mut neighbors = Vec::with_capacity(segments.len());
-    for (index, segment) in segments.iter().enumerate() {
-        match segment {
+    for (index, seg_index) in indices.iter().enumerate() {
+        match seg_index {
             Some(_) => {
                 let mut neighbors_index = Vec::with_capacity(8);
                 for (i, j) in [(-1, 0), (0, -1), (0, 1), (1, 0)].iter() {
                     for k in 0..2 {
-                        if let Some(neighbor_index) = index.checked_add_signed(
+                        if let Some(n_index) = index.checked_add_signed(
                             i * 2 * (nb_cols as isize) + 2 * j + k - (index as isize % 2),
                         ) {
-                            neighbors_index.push(neighbor_index);
+                            if let Some(neighbor_index) = indices[n_index] {
+                                neighbors_index.push(neighbor_index);
+                            }
                         }
                     }
                 }
-                neighbors.push(Some(neighbors_index));
+                neighbors.push(neighbors_index);
             }
-            None => {
-                neighbors.push(None);
-            }
+            None => (),
         }
     }
     for first_index in 0..segments.len() {
-        if segments[first_index].is_none() {
-            visited[first_index] = true;
-            continue;
-        } else if visited[first_index] {
+        if visited[first_index] {
             continue;
         }
         let mut contour = Vec::new();
         let mut tail_index = first_index;
         let mut head_index = first_index;
         visited[first_index] = true;
-        if let Some(seg) = segments.get(first_index) {
-            if let Some(segment) = seg {
-                contour.push(segment.0.clone());
-                contour.push(segment.1.clone());
-            }
+        if let Some(segment) = segments.get(first_index) {
+            contour.push(segment.0.clone());
+            contour.push(segment.1.clone());
         }
         let mut nb_points = 0;
         while contour.len() > nb_points {
@@ -402,8 +403,26 @@ fn assemble_contours(
                 find_previous_segment(&segments, &visited, &neighbors, tail_index, tol),
             ) {
                 (Some(next_index), None) => {
-                    if let Some(next_seg) = segments.get(next_index) {
-                        if let Some(next_segment) = next_seg {
+                    if let Some(next_segment) = segments.get(next_index) {
+                        contour.push(next_segment.1.clone());
+                        head_index = next_index;
+                        visited[next_index] = true;
+                    } else {
+                        unreachable!("The returned index should be an available segment index.");
+                    }
+                }
+                (None, Some(prev_index)) => {
+                    if let Some(prev_segment) = segments.get(prev_index) {
+                        contour.insert(0, prev_segment.0.clone());
+                        tail_index = prev_index;
+                        visited[prev_index] = true;
+                    } else {
+                        unreachable!("The returned index should be an available segment index.");
+                    }
+                }
+                (Some(next_index), Some(prev_index)) => {
+                    if next_index <= prev_index {
+                        if let Some(next_segment) = segments.get(next_index) {
                             contour.push(next_segment.1.clone());
                             head_index = next_index;
                             visited[next_index] = true;
@@ -413,52 +432,10 @@ fn assemble_contours(
                             );
                         }
                     } else {
-                        unreachable!("The returned index should be an available segment index.");
-                    }
-                }
-                (None, Some(prev_index)) => {
-                    if let Some(prev_seg) = segments.get(prev_index) {
-                        if let Some(prev_segment) = prev_seg {
+                        if let Some(prev_segment) = segments.get(prev_index) {
                             contour.insert(0, prev_segment.0.clone());
                             tail_index = prev_index;
                             visited[prev_index] = true;
-                        } else {
-                            unreachable!(
-                                "The returned index should be an available segment index."
-                            );
-                        }
-                    } else {
-                        unreachable!("The returned index should be an available segment index.");
-                    }
-                }
-                (Some(next_index), Some(prev_index)) => {
-                    if next_index <= prev_index {
-                        if let Some(next_seg) = segments.get(next_index) {
-                            if let Some(next_segment) = next_seg {
-                                contour.push(next_segment.1.clone());
-                                head_index = next_index;
-                                visited[next_index] = true;
-                            } else {
-                                unreachable!(
-                                    "The returned index should be an available segment index."
-                                );
-                            }
-                        } else {
-                            unreachable!(
-                                "The returned index should be an available segment index."
-                            );
-                        }
-                    } else {
-                        if let Some(prev_seg) = segments.get(prev_index) {
-                            if let Some(prev_segment) = prev_seg {
-                                contour.insert(0, prev_segment.0.clone());
-                                tail_index = prev_index;
-                                visited[prev_index] = true;
-                            } else {
-                                unreachable!(
-                                    "The returned index should be an available segment index."
-                                );
-                            }
                         } else {
                             unreachable!(
                                 "The returned index should be an available segment index."
@@ -478,22 +455,18 @@ fn assemble_contours(
 
 #[inline]
 fn find_next_segment(
-    segments: &Vec<Option<(Point, Point)>>,
+    segments: &Vec<(Point, Point)>,
     visited: &Vec<bool>,
-    neighbors: &Vec<Option<Vec<usize>>>,
+    neighbors: &Vec<Vec<usize>>,
     index: usize,
     tol: f64,
 ) -> Option<usize> {
-    if let (Some(seg), Some(n_index)) = (segments.get(index), neighbors.get(index)) {
-        if let (Some(segment), Some(neighbors_index)) = (seg, n_index) {
-            for &next_index in neighbors_index {
-                if !visited[next_index] {
-                    if let Some(next_seg) = segments.get(next_index) {
-                        if let Some(next_segment) = next_seg {
-                            if segment.1.close(&next_segment.0, tol) {
-                                return Some(next_index);
-                            }
-                        }
+    if let (Some(segment), Some(neighbors_index)) = (segments.get(index), neighbors.get(index)) {
+        for &next_index in neighbors_index {
+            if !visited[next_index] {
+                if let Some(next_segment) = segments.get(next_index) {
+                    if segment.1.close(&next_segment.0, tol) {
+                        return Some(next_index);
                     }
                 }
             }
@@ -504,22 +477,18 @@ fn find_next_segment(
 
 #[inline]
 fn find_previous_segment(
-    segments: &Vec<Option<(Point, Point)>>,
+    segments: &Vec<(Point, Point)>,
     visited: &Vec<bool>,
-    neighbors: &Vec<Option<Vec<usize>>>,
+    neighbors: &Vec<Vec<usize>>,
     index: usize,
     tol: f64,
 ) -> Option<usize> {
-    if let (Some(seg), Some(n_index)) = (segments.get(index), neighbors.get(index)) {
-        if let (Some(segment), Some(neighbors_index)) = (seg, n_index) {
-            for &prev_index in neighbors_index {
-                if !visited[prev_index] {
-                    if let Some(prev_seg) = segments.get(prev_index) {
-                        if let Some(prev_segment) = prev_seg {
-                            if prev_segment.1.close(&segment.0, tol) {
-                                return Some(prev_index);
-                            }
-                        }
+    if let (Some(segment), Some(neighbors_index)) = (segments.get(index), neighbors.get(index)) {
+        for &prev_index in neighbors_index {
+            if !visited[prev_index] {
+                if let Some(prev_segment) = segments.get(prev_index) {
+                    if prev_segment.1.close(&segment.0, tol) {
+                        return Some(prev_index);
                     }
                 }
             }
@@ -543,9 +512,9 @@ fn marching_squares(
         None => 0,
     };
     match _get_contour_segments(&array, level, is_fully_connected, mask.as_ref()) {
-        Ok(segments) => {
-            debug_assert_eq!(segments.len(), 2 * nb_rows * nb_cols);
-            Ok(assemble_contours(&segments, nb_cols, tol))
+        Ok((segments, indices)) => {
+            debug_assert_eq!(indices.len(), 2 * nb_rows * nb_cols);
+            Ok(assemble_contours(&segments, &indices, nb_cols, tol))
         }
         Err(msg) => Err(PyValueError::new_err(msg)),
     }
