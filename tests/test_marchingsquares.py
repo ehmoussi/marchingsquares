@@ -123,6 +123,35 @@ def test_marching_squares_random_array(random_array: NDArray[np.float64]) -> Non
             ), f"({point.x}, {point.y}) != ({point_ref.x}, {point_ref.y})"
 
 
+def test_get_contour_segments_random_with_mask(
+    random_array: NDArray[np.float64],
+) -> None:
+    mask = (
+        np.random.random(random_array.shape[0] * random_array.shape[1]).reshape(
+            random_array.shape
+        )
+        < 0.1
+    )
+    start_ref = time.perf_counter_ns()
+    segments_ref = _get_contour_segments(random_array, 0.5, False, mask=mask)
+    end_ref = time.perf_counter_ns()
+    start = time.perf_counter_ns()
+    segments = marchingsquares.get_contour_segments(random_array, level=0.5, mask=mask)
+    end = time.perf_counter_ns()
+    print(
+        f"\ntime_ref: {(end_ref - start_ref) * 1e-6} ms\ntime: {(end - start) * 1e-6} ms"
+    )
+    assert len(segments) == len(
+        segments_ref
+    ), f"The number of segments is different {len(segments)}!={len(segments_ref)}"
+    for segment, segment_ref in zip(segments, segments_ref):
+        for point, point_ref_v in zip(segment, segment_ref):
+            point_ref = marchingsquares.Point.new(point_ref_v[0], point_ref_v[1])
+            assert point.close(
+                point_ref, 1e-16
+            ), f"({point.x}, {point.y}) != ({point_ref.x}, {point_ref.y})"
+
+
 def test_marching_squares_with_mask(random_array: NDArray[np.float64]) -> None:
     mask = (
         np.random.random(random_array.shape[0] * random_array.shape[1]).reshape(
