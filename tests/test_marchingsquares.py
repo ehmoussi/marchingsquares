@@ -1,4 +1,6 @@
+import contextlib
 import time
+from typing import Generator
 import marchingsquares
 from marchingalgo._find_contours_cy import _get_contour_segments
 from marchingalgo import find_contours
@@ -8,6 +10,32 @@ from numpy.typing import NDArray
 import numpy as np
 
 import pytest
+
+
+@contextlib.contextmanager
+def measure_time(is_ref: bool) -> Generator[None, None, None]:
+    start = time.perf_counter_ns()
+    try:
+        yield
+    finally:
+        end = time.perf_counter_ns()
+        t = float(end - start)
+        if t < 0.1 * 1e3:
+            unit = "ns"
+        elif t < 0.1 * 1e6:
+            t /= 1e3
+            unit = "us"
+        elif t < 0.1 * 1e9:
+            t /= 1e6
+            unit = "ms"
+        else:
+            t /= 1e9
+            unit = "s"
+        if is_ref:
+            prefix = "\ntime_ref"
+        else:
+            prefix = "time"
+        print(f"{prefix}: {t:.2f} {unit}")
 
 
 @pytest.fixture()
@@ -76,29 +104,23 @@ def test_marching_squares(array: NDArray[np.float64]) -> None:
             ), f"({point.x}, {point.y}) != ({point_ref.x}, {point_ref.y}) in contour {index}"
 
 
-@pytest.fixture()
+@pytest.fixture(scope="module")
 def random_array() -> NDArray[np.float64]:
-    size = int(np.random.random(1)[0] * 2e3)
-    print(size * size)
+    size = 2000  # int(np.random.random(1)[0] * 1e4)
     array = np.random.random(size * size)
     return array.reshape(size, size)
 
 
 def test_get_contour_segments_random(random_array: NDArray[np.float64]) -> None:
-    start_ref = time.perf_counter_ns()
-    segments_ref = _get_contour_segments(random_array, 0.5, False, None)
-    end_ref = time.perf_counter_ns()
+    with measure_time(is_ref=True):
+        segments_ref = _get_contour_segments(random_array, 0.5, False, None)
     flat_random_array = random_array.flatten().tolist()
-    start = time.perf_counter_ns()
-    segments = marchingsquares.get_contour_segments(
-        flat_random_array,
-        (random_array.shape[0], random_array.shape[1]),
-        level=0.5,
-    )
-    end = time.perf_counter_ns()
-    print(
-        f"\ntime_ref: {(end_ref - start_ref) * 1e-6} ms\ntime: {(end - start) * 1e-6} ms"
-    )
+    with measure_time(is_ref=False):
+        segments = marchingsquares.get_contour_segments(
+            flat_random_array,
+            (random_array.shape[0], random_array.shape[1]),
+            level=0.5,
+        )
     assert len(segments) == len(
         segments_ref
     ), f"The number of segments is different {len(segments)}!={len(segments_ref)}"
@@ -110,22 +132,17 @@ def test_get_contour_segments_random(random_array: NDArray[np.float64]) -> None:
             ), f"({point.x}, {point.y}) != ({point_ref.x}, {point_ref.y})"
 
 
-def test_marching_squares_random_array(random_array: NDArray[np.float64]) -> None:
-    start_ref = time.perf_counter_ns()
-    contours_ref = find_contours(random_array, 0.5)
-    end_ref = time.perf_counter_ns()
+def test_marching_squares_random(random_array: NDArray[np.float64]) -> None:
+    with measure_time(is_ref=True):
+        contours_ref = find_contours(random_array, 0.5)
     flat_random_array = random_array.flatten().tolist()
-    start = time.perf_counter_ns()
-    contours = marchingsquares.marching_squares(
-        flat_random_array,
-        (random_array.shape[0], random_array.shape[1]),
-        level=0.5,
-        tol=1e-16,
-    )
-    end = time.perf_counter_ns()
-    print(
-        f"\ntime_ref: {(end_ref - start_ref) * 1e-6} ms\ntime: {(end - start) * 1e-6} ms"
-    )
+    with measure_time(is_ref=False):
+        contours = marchingsquares.marching_squares(
+            flat_random_array,
+            (random_array.shape[0], random_array.shape[1]),
+            level=0.5,
+            tol=1e-16,
+        )
     assert len(contours) == len(
         contours_ref
     ), f"The number of contours is different {len(contours)}!={len(contours_ref)}"
@@ -138,30 +155,30 @@ def test_marching_squares_random_array(random_array: NDArray[np.float64]) -> Non
             ), f"({point.x}, {point.y}) != ({point_ref.x}, {point_ref.y})"
 
 
-def test_get_contour_segments_random_with_mask(
-    random_array: NDArray[np.float64],
-) -> None:
-    mask = (
+@pytest.fixture(scope="module")
+def random_mask(random_array: NDArray[np.float64]) -> NDArray[np.bool]:
+    return (
         np.random.random(random_array.shape[0] * random_array.shape[1]).reshape(
             random_array.shape
         )
         < 0.1
     )
-    start_ref = time.perf_counter_ns()
-    segments_ref = _get_contour_segments(random_array, 0.5, False, mask=mask)
-    end_ref = time.perf_counter_ns()
+
+
+def test_get_contour_segments_random_with_mask(
+    random_array: NDArray[np.float64], random_mask: NDArray[np.bool]
+) -> None:
+    with measure_time(is_ref=True):
+        segments_ref = _get_contour_segments(random_array, 0.5, False, mask=random_mask)
     flat_random_array = random_array.flatten().tolist()
-    start = time.perf_counter_ns()
-    segments = marchingsquares.get_contour_segments(
-        flat_random_array,
-        (random_array.shape[0], random_array.shape[1]),
-        level=0.5,
-        mask=mask.flatten().tolist(),
-    )
-    end = time.perf_counter_ns()
-    print(
-        f"\ntime_ref: {(end_ref - start_ref) * 1e-6} ms\ntime: {(end - start) * 1e-6} ms"
-    )
+    flatten_random_mask = random_mask.flatten().tolist()
+    with measure_time(is_ref=False):
+        segments = marchingsquares.get_contour_segments(
+            flat_random_array,
+            (random_array.shape[0], random_array.shape[1]),
+            level=0.5,
+            mask=flatten_random_mask,
+        )
     assert len(segments) == len(
         segments_ref
     ), f"The number of segments is different {len(segments)}!={len(segments_ref)}"
@@ -173,29 +190,21 @@ def test_get_contour_segments_random_with_mask(
             ), f"({point.x}, {point.y}) != ({point_ref.x}, {point_ref.y})"
 
 
-def test_marching_squares_with_mask(random_array: NDArray[np.float64]) -> None:
-    mask = (
-        np.random.random(random_array.shape[0] * random_array.shape[1]).reshape(
-            random_array.shape
-        )
-        < 0.1
-    )
+def test_marching_squares_random_with_mask(
+    random_array: NDArray[np.float64], random_mask: NDArray[np.bool]
+) -> None:
+    with measure_time(is_ref=True):
+        contours_ref = find_contours(random_array, 0.5, mask=random_mask)
     flat_random_array = random_array.flatten().tolist()
-    start = time.perf_counter_ns()
-    contours = marchingsquares.marching_squares(
-        flat_random_array,
-        (random_array.shape[0], random_array.shape[1]),
-        level=0.5,
-        tol=1e-16,
-        mask=mask.flatten().tolist(),
-    )
-    end = time.perf_counter_ns()
-    start_ref = time.perf_counter_ns()
-    contours_ref = find_contours(random_array, 0.5, mask=mask)
-    end_ref = time.perf_counter_ns()
-    print(
-        f"\ntime_ref: {(end_ref - start_ref) * 1e-6} ms\ntime: {(end - start) * 1e-6} ms"
-    )
+    flatten_random_mask = random_mask.flatten().tolist()
+    with measure_time(is_ref=False):
+        contours = marchingsquares.marching_squares(
+            flat_random_array,
+            (random_array.shape[0], random_array.shape[1]),
+            level=0.5,
+            tol=1e-16,
+            mask=flatten_random_mask,
+        )
     assert len(contours) == len(
         contours_ref
     ), f"The number of contours is different {len(contours)}!={len(contours_ref)}"
@@ -209,14 +218,9 @@ def test_marching_squares_with_mask(random_array: NDArray[np.float64]) -> None:
 
 
 def test_marching_squares_with_incorrect_mask_size(
-    random_array: NDArray[np.float64],
+    random_array: NDArray[np.float64], random_mask: NDArray[np.bool]
 ) -> None:
-    mask = (
-        np.random.random(random_array.shape[0] * (random_array.shape[1] - 1)).reshape(
-            (random_array.shape[0], random_array.shape[1] - 1)
-        )
-        < 0.1
-    )
+    mask = random_mask[:, :-1]
     with pytest.raises(ValueError, match="must have the same length"):
         marchingsquares.marching_squares(
             random_array.flatten().tolist(),

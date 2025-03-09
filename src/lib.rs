@@ -219,30 +219,6 @@ fn marching_square(
     }
 }
 
-#[pyfunction]
-#[pyo3(signature=(array, shape, level, vertex_connect_high=false, mask=None))]
-fn get_contour_segments(
-    array: Vec<f64>,
-    shape: (usize, usize),
-    level: f64,
-    vertex_connect_high: bool,
-    mask: Option<Vec<bool>>,
-) -> PyResult<Vec<(Point, Point)>> {
-    let grid_mask =
-        &to_grid_mask(mask.as_ref(), &array, shape.0, shape.1).map_err(PyValueError::new_err)?;
-    match _get_contour_segments(
-        &array,
-        shape.0,
-        shape.1,
-        level,
-        vertex_connect_high,
-        grid_mask,
-    ) {
-        Ok((segments, _)) => Ok(segments),
-        Err(msg) => Err(PyValueError::new_err(msg)),
-    }
-}
-
 #[inline]
 fn to_grid_mask(
     mask: Option<&Vec<bool>>,
@@ -293,7 +269,7 @@ fn _get_contour_segments(
             array_len = array.len(),
         ));
     }
-    let mut segments: Vec<(Point, Point)> = Vec::with_capacity(2 * nb_rows * nb_cols);
+    let mut segments: Vec<(Point, Point)> = Vec::with_capacity(nb_rows * nb_cols);
     let mut indices = vec![None; 2 * nb_rows * nb_cols];
     let mut current_index: usize = 0;
     for r0 in 0..(nb_rows - 1) {
@@ -491,6 +467,30 @@ fn find_previous_segment(
 }
 
 #[pyfunction]
+#[pyo3(signature=(array, shape, level, vertex_connect_high=false, mask=None))]
+fn get_contour_segments(
+    array: Vec<f64>,
+    shape: (usize, usize),
+    level: f64,
+    vertex_connect_high: bool,
+    mask: Option<Vec<bool>>,
+) -> PyResult<Vec<(Point, Point)>> {
+    let grid_mask =
+        to_grid_mask(mask.as_ref(), &array, shape.0, shape.1).map_err(PyValueError::new_err)?;
+    match _get_contour_segments(
+        &array,
+        shape.0,
+        shape.1,
+        level,
+        vertex_connect_high,
+        &grid_mask,
+    ) {
+        Ok((segments, _)) => Ok(segments),
+        Err(msg) => Err(PyValueError::new_err(msg)),
+    }
+}
+
+#[pyfunction]
 #[pyo3(signature=(array, shape, level, is_fully_connected=false, mask=None, tol=1e-10))]
 fn marching_squares(
     array: Vec<f64>,
@@ -503,19 +503,20 @@ fn marching_squares(
     let (nb_rows, nb_cols) = shape;
     let grid_mask =
         to_grid_mask(mask.as_ref(), &array, nb_rows, nb_cols).map_err(PyValueError::new_err)?;
-    _get_contour_segments(
+    match _get_contour_segments(
         &array,
         shape.0,
         shape.1,
         level,
         is_fully_connected,
         &grid_mask,
-    )
-    .map_err(PyValueError::new_err)
-    .map(|(segments, indices)| {
-        debug_assert_eq!(indices.len(), 2 * nb_rows * nb_cols);
-        assemble_contours(&segments, &indices, nb_cols, tol)
-    })
+    ) {
+        Ok((segments, indices)) => {
+            debug_assert_eq!(indices.len(), 2 * nb_rows * nb_cols);
+            Ok(assemble_contours(&segments, &indices, nb_cols, tol))
+        }
+        Err(msg) => Err(PyValueError::new_err(msg)),
+    }
 }
 
 // Marching squares algorithm
