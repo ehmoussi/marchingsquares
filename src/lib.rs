@@ -67,183 +67,135 @@ fn marching_square(
     lr: f64,
     level: f64,
     vertex_connect_high: bool,
-) -> Vec<Option<f64>> {
+) -> Vec<f64> {
     let square_case = 1 * u8::from(ul > level) as u8
         | 2 * (ur > level) as u8
         | 4 * (ll > level) as u8
         | 8 * (lr > level) as u8;
     match square_case {
         1 => vec![
-            Some(top_x(r0, c0, ul, ur, level)),
-            Some(top_y(r0, c0, ul, ur, level)),
-            Some(left_x(r0, c0, ul, ll, level)),
-            Some(left_y(r0, c0, ul, ll, level)),
-            None,
-            None,
-            None,
-            None,
+            top_x(r0, c0, ul, ur, level),
+            top_y(r0, c0, ul, ur, level),
+            left_x(r0, c0, ul, ll, level),
+            left_y(r0, c0, ul, ll, level),
         ],
         2 => vec![
-            Some(right_x(r0, c1, ur, lr, level)),
-            Some(right_y(r0, c1, ur, lr, level)),
-            Some(top_x(r0, c0, ul, ur, level)),
-            Some(top_y(r0, c0, ul, ur, level)),
-            None,
-            None,
-            None,
-            None,
+            right_x(r0, c1, ur, lr, level),
+            right_y(r0, c1, ur, lr, level),
+            top_x(r0, c0, ul, ur, level),
+            top_y(r0, c0, ul, ur, level),
         ],
         3 => vec![
-            Some(right_x(r0, c1, ur, lr, level)),
-            Some(right_y(r0, c1, ur, lr, level)),
-            Some(left_x(r0, c0, ul, ll, level)),
-            Some(left_y(r0, c0, ul, ll, level)),
-            None,
-            None,
-            None,
-            None,
+            right_x(r0, c1, ur, lr, level),
+            right_y(r0, c1, ur, lr, level),
+            left_x(r0, c0, ul, ll, level),
+            left_y(r0, c0, ul, ll, level),
         ],
         4 => vec![
-            Some(left_x(r0, c0, ul, ll, level)),
-            Some(left_y(r0, c0, ul, ll, level)),
-            Some(bottom_x(r1, c0, ll, lr, level)),
-            Some(bottom_y(r1, c0, ll, lr, level)),
-            None,
-            None,
-            None,
-            None,
+            left_x(r0, c0, ul, ll, level),
+            left_y(r0, c0, ul, ll, level),
+            bottom_x(r1, c0, ll, lr, level),
+            bottom_y(r1, c0, ll, lr, level),
         ],
         5 => vec![
-            Some(top_x(r0, c0, ul, ur, level)),
-            Some(top_y(r0, c0, ul, ur, level)),
-            Some(bottom_x(r1, c0, ll, lr, level)),
-            Some(bottom_y(r1, c0, ll, lr, level)),
-            None,
-            None,
-            None,
-            None,
+            top_x(r0, c0, ul, ur, level),
+            top_y(r0, c0, ul, ur, level),
+            bottom_x(r1, c0, ll, lr, level),
+            bottom_y(r1, c0, ll, lr, level),
         ],
         6 => match vertex_connect_high {
             true => vec![
-                Some(left_x(r0, c0, ul, ll, level)),
-                Some(left_y(r0, c0, ul, ll, level)),
-                Some(top_x(r0, c0, ul, ur, level)),
-                Some(top_y(r0, c0, ul, ur, level)),
+                left_x(r0, c0, ul, ll, level),
+                left_y(r0, c0, ul, ll, level),
+                top_x(r0, c0, ul, ur, level),
+                top_y(r0, c0, ul, ur, level),
                 // seg 2
-                Some(right_x(r0, c1, ur, lr, level)),
-                Some(right_y(r0, c1, ur, lr, level)),
-                Some(bottom_x(r1, c0, ll, lr, level)),
-                Some(bottom_y(r1, c0, ll, lr, level)),
+                right_x(r0, c1, ur, lr, level),
+                right_y(r0, c1, ur, lr, level),
+                bottom_x(r1, c0, ll, lr, level),
+                bottom_y(r1, c0, ll, lr, level),
             ],
             false => vec![
-                Some(right_x(r0, c1, ur, lr, level)),
-                Some(right_y(r0, c1, ur, lr, level)),
-                Some(top_x(r0, c0, ul, ur, level)),
-                Some(top_y(r0, c0, ul, ur, level)),
+                right_x(r0, c1, ur, lr, level),
+                right_y(r0, c1, ur, lr, level),
+                top_x(r0, c0, ul, ur, level),
+                top_y(r0, c0, ul, ur, level),
                 // seg 2
-                Some(left_x(r0, c0, ul, ll, level)),
-                Some(left_y(r0, c0, ul, ll, level)),
-                Some(bottom_x(r1, c0, ll, lr, level)),
-                Some(bottom_y(r1, c0, ll, lr, level)),
+                left_x(r0, c0, ul, ll, level),
+                left_y(r0, c0, ul, ll, level),
+                bottom_x(r1, c0, ll, lr, level),
+                bottom_y(r1, c0, ll, lr, level),
             ],
         },
         7 => vec![
-            Some(right_x(r0, c1, ur, lr, level)),
-            Some(right_y(r0, c1, ur, lr, level)),
-            Some(bottom_x(r1, c0, ll, lr, level)),
-            Some(bottom_y(r1, c0, ll, lr, level)),
-            None,
-            None,
-            None,
-            None,
+            right_x(r0, c1, ur, lr, level),
+            right_y(r0, c1, ur, lr, level),
+            bottom_x(r1, c0, ll, lr, level),
+            bottom_y(r1, c0, ll, lr, level),
         ],
         8 => vec![
-            Some(bottom_x(r1, c0, ll, lr, level)),
-            Some(bottom_y(r1, c0, ll, lr, level)),
-            Some(right_x(r0, c1, ur, lr, level)),
-            Some(right_y(r0, c1, ur, lr, level)),
-            None,
-            None,
-            None,
-            None,
+            bottom_x(r1, c0, ll, lr, level),
+            bottom_y(r1, c0, ll, lr, level),
+            right_x(r0, c1, ur, lr, level),
+            right_y(r0, c1, ur, lr, level),
         ],
         9 => match vertex_connect_high {
             true => vec![
-                Some(top_x(r0, c0, ul, ur, level)),
-                Some(top_y(r0, c0, ul, ur, level)),
-                Some(right_x(r0, c1, ur, lr, level)),
-                Some(right_y(r0, c1, ur, lr, level)),
+                top_x(r0, c0, ul, ur, level),
+                top_y(r0, c0, ul, ur, level),
+                right_x(r0, c1, ur, lr, level),
+                right_y(r0, c1, ur, lr, level),
                 // seg 2
-                Some(bottom_x(r1, c0, ll, lr, level)),
-                Some(bottom_y(r1, c0, ll, lr, level)),
-                Some(left_x(r0, c0, ul, ll, level)),
-                Some(left_y(r0, c0, ul, ll, level)),
+                bottom_x(r1, c0, ll, lr, level),
+                bottom_y(r1, c0, ll, lr, level),
+                left_x(r0, c0, ul, ll, level),
+                left_y(r0, c0, ul, ll, level),
             ],
             false => vec![
-                Some(top_x(r0, c0, ul, ur, level)),
-                Some(top_y(r0, c0, ul, ur, level)),
-                Some(left_x(r0, c0, ul, ll, level)),
-                Some(left_y(r0, c0, ul, ll, level)),
+                top_x(r0, c0, ul, ur, level),
+                top_y(r0, c0, ul, ur, level),
+                left_x(r0, c0, ul, ll, level),
+                left_y(r0, c0, ul, ll, level),
                 // seg 2
-                Some(bottom_x(r1, c0, ll, lr, level)),
-                Some(bottom_y(r1, c0, ll, lr, level)),
-                Some(right_x(r0, c1, ur, lr, level)),
-                Some(right_y(r0, c1, ur, lr, level)),
+                bottom_x(r1, c0, ll, lr, level),
+                bottom_y(r1, c0, ll, lr, level),
+                right_x(r0, c1, ur, lr, level),
+                right_y(r0, c1, ur, lr, level),
             ],
         },
         10 => vec![
-            Some(bottom_x(r1, c0, ll, lr, level)),
-            Some(bottom_y(r1, c0, ll, lr, level)),
-            Some(top_x(r0, c0, ul, ur, level)),
-            Some(top_y(r0, c0, ul, ur, level)),
-            None,
-            None,
-            None,
-            None,
+            bottom_x(r1, c0, ll, lr, level),
+            bottom_y(r1, c0, ll, lr, level),
+            top_x(r0, c0, ul, ur, level),
+            top_y(r0, c0, ul, ur, level),
         ],
         11 => vec![
-            Some(bottom_x(r1, c0, ll, lr, level)),
-            Some(bottom_y(r1, c0, ll, lr, level)),
-            Some(left_x(r0, c0, ul, ll, level)),
-            Some(left_y(r0, c0, ul, ll, level)),
-            None,
-            None,
-            None,
-            None,
+            bottom_x(r1, c0, ll, lr, level),
+            bottom_y(r1, c0, ll, lr, level),
+            left_x(r0, c0, ul, ll, level),
+            left_y(r0, c0, ul, ll, level),
         ],
         12 => vec![
-            Some(left_x(r0, c0, ul, ll, level)),
-            Some(left_y(r0, c0, ul, ll, level)),
-            Some(right_x(r0, c1, ur, lr, level)),
-            Some(right_y(r0, c1, ur, lr, level)),
-            None,
-            None,
-            None,
-            None,
+            left_x(r0, c0, ul, ll, level),
+            left_y(r0, c0, ul, ll, level),
+            right_x(r0, c1, ur, lr, level),
+            right_y(r0, c1, ur, lr, level),
         ],
         13 => vec![
-            Some(top_x(r0, c0, ul, ur, level)),
-            Some(top_y(r0, c0, ul, ur, level)),
-            Some(right_x(r0, c1, ur, lr, level)),
-            Some(right_y(r0, c1, ur, lr, level)),
-            None,
-            None,
-            None,
-            None,
+            top_x(r0, c0, ul, ur, level),
+            top_y(r0, c0, ul, ur, level),
+            right_x(r0, c1, ur, lr, level),
+            right_y(r0, c1, ur, lr, level),
         ],
         14 => vec![
-            Some(left_x(r0, c0, ul, ll, level)),
-            Some(left_y(r0, c0, ul, ll, level)),
-            Some(top_x(r0, c0, ul, ur, level)),
-            Some(top_y(r0, c0, ul, ur, level)),
-            None,
-            None,
-            None,
-            None,
+            left_x(r0, c0, ul, ll, level),
+            left_y(r0, c0, ul, ll, level),
+            top_x(r0, c0, ul, ur, level),
+            top_y(r0, c0, ul, ur, level),
         ],
         0 | 15 => {
             // No segments pass through the square
-            vec![None; 8]
+            Vec::new()
         }
         other_case => unreachable!("Unexpected case: {}", other_case),
     }
@@ -329,25 +281,21 @@ fn _get_contour_segments(
                     let segment =
                         marching_square(r0, c0, r1, c1, ul, ur, ll, lr, level, vertex_connect_high);
                     // Segment 1
-                    if let (Some(s1_p1_x), Some(s1_p1_y), Some(s1_p2_x), Some(s1_p2_y)) =
-                        (segment[0], segment[1], segment[2], segment[3])
-                    {
+                    if segment.len() >= 4 {
                         indices[current_index] = Some(segments.len() / 4);
-                        segments.push(s1_p1_x);
-                        segments.push(s1_p1_y);
-                        segments.push(s1_p2_x);
-                        segments.push(s1_p2_y);
+                        segments.push(segment[0]); // seg 1 p1 x
+                        segments.push(segment[1]); // seg 1 p1 y
+                        segments.push(segment[2]); // seg 1 p2 x
+                        segments.push(segment[3]); // seg 1 p2 y
                     }
                     current_index += 1;
                     // Segment 2
-                    if let (Some(s2_p1_x), Some(s2_p1_y), Some(s2_p2_x), Some(s2_p2_y)) =
-                        (segment[4], segment[5], segment[6], segment[7])
-                    {
+                    if segment.len() == 8 {
                         indices[current_index] = Some(segments.len() / 4);
-                        segments.push(s2_p1_x);
-                        segments.push(s2_p1_y);
-                        segments.push(s2_p2_x);
-                        segments.push(s2_p2_y);
+                        segments.push(segment[4]); // seg 2 p1 x
+                        segments.push(segment[5]); // seg 2 p1 y
+                        segments.push(segment[6]); // seg 2 p2 x
+                        segments.push(segment[7]); // seg 2 p2 y
                     }
                     current_index += 1;
                 }
