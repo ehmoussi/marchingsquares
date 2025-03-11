@@ -24,5 +24,6 @@ marchingalgo = { git = "https://github.com/ehmoussi/marchingalgo.git" }
 [dependency-groups]
 dev = [
     "marchingalgo",
+    "maturin>=0.12.20",
     "pytest",
 ]
