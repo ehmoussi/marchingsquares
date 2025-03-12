@@ -1,40 +1,17 @@
-import contextlib
-import time
-from typing import Generator
 import marchingsquares
 from marchingalgo._find_contours_cy import _get_contour_segments
 from marchingalgo import find_contours
 from numpy.typing import NDArray
-
 import numpy as np
 
 import pytest
 
 
-@contextlib.contextmanager
-def measure_time(is_ref: bool) -> Generator[None, None, None]:
-    start = time.perf_counter_ns()
-    try:
-        yield
-    finally:
-        end = time.perf_counter_ns()
-        t = float(end - start)
-        if t < 0.1 * 1e3:
-            unit = "ns"
-        elif t < 0.1 * 1e6:
-            t /= 1e3
-            unit = "us"
-        elif t < 0.1 * 1e9:
-            t /= 1e6
-            unit = "ms"
-        else:
-            t /= 1e9
-            unit = "s"
-        if is_ref:
-            prefix = "\ntime_ref"
-        else:
-            prefix = "time"
-        print(f"{prefix}: {t:.2f} {unit}")
+def get_contour_segments(*args, **kwargs):
+    segments_ref = np.asarray(
+        _get_contour_segments(*args, **kwargs),
+    )
+    return segments_ref.reshape(len(segments_ref), 2, 2)
 
 
 @pytest.fixture()
@@ -106,14 +83,17 @@ def random_array() -> NDArray[np.float64]:
     return array.reshape(size, size)
 
 
-def test_get_contour_segments_random(random_array: NDArray[np.float64]) -> None:
-    with measure_time(is_ref=True):
-        segments_ref = np.asarray(
-            _get_contour_segments(random_array, 0.5, False, None),
-        )
-        segments_ref = segments_ref.reshape(len(segments_ref), 2, 2)
-    with measure_time(is_ref=False):
-        segments = marchingsquares.get_contour_segments(random_array, level=0.5)
+def test_get_contour_segments_random(
+    random_array: NDArray[np.float64], benchmark
+) -> None:
+    segments, segments_ref = benchmark(
+        marchingsquares.get_contour_segments,
+        get_contour_segments,
+        random_array,
+        0.5,
+        False,
+        None,
+    )
     assert (
         segments.shape == segments_ref.shape
     ), f"The number of segments is different {segments.shape}!={segments_ref.shape}"
@@ -124,11 +104,10 @@ def test_get_contour_segments_random(random_array: NDArray[np.float64]) -> None:
             ), f"({point[0]}, {point[1]}) != ({point_ref[0]}, {point_ref[1]})"
 
 
-def test_marching_squares_random(random_array: NDArray[np.float64]) -> None:
-    with measure_time(is_ref=True):
-        contours_ref = find_contours(random_array, level=0.5)
-    with measure_time(is_ref=False):
-        contours = marchingsquares.marching_squares(random_array, level=0.5, tol=1e-16)
+def test_marching_squares_random(random_array: NDArray[np.float64], benchmark) -> None:
+    contours, contours_ref = benchmark(
+        marchingsquares.marching_squares, find_contours, random_array, level=0.5
+    )
     assert len(contours) == len(
         contours_ref
     ), f"The number of contours is different {len(contours)}!={len(contours_ref)}"
@@ -151,16 +130,16 @@ def random_mask(random_array: NDArray[np.float64]) -> NDArray[np.bool]:
 
 
 def test_get_contour_segments_random_with_mask(
-    random_array: NDArray[np.float64], random_mask: NDArray[np.bool]
+    random_array: NDArray[np.float64], random_mask: NDArray[np.bool], benchmark
 ) -> None:
-    with measure_time(is_ref=True):
-        segments_ref = np.asarray(
-            _get_contour_segments(random_array, 0.5, False, mask=random_mask)
-        ).reshape(-1, 2, 2)
-    with measure_time(is_ref=False):
-        segments = marchingsquares.get_contour_segments(
-            random_array, level=0.5, mask=random_mask
-        )
+    segments, segments_ref = benchmark(
+        marchingsquares.get_contour_segments,
+        get_contour_segments,
+        random_array,
+        0.5,
+        False,
+        random_mask,
+    )
     assert (
         segments.shape == segments_ref.shape
     ), f"The number of segments is different {len(segments)}!={len(segments_ref)}"
@@ -172,14 +151,15 @@ def test_get_contour_segments_random_with_mask(
 
 
 def test_marching_squares_random_with_mask(
-    random_array: NDArray[np.float64], random_mask: NDArray[np.bool]
+    random_array: NDArray[np.float64], random_mask: NDArray[np.bool], benchmark
 ) -> None:
-    with measure_time(is_ref=True):
-        contours_ref = find_contours(random_array, 0.5, mask=random_mask)
-    with measure_time(is_ref=False):
-        contours = marchingsquares.marching_squares(
-            random_array, level=0.5, tol=1e-16, mask=random_mask
-        )
+    contours, contours_ref = benchmark(
+        marchingsquares.marching_squares,
+        find_contours,
+        random_array,
+        level=0.5,
+        mask=random_mask,
+    )
     assert len(contours) == len(
         contours_ref
     ), f"The number of contours is different {len(contours)}!={len(contours_ref)}"

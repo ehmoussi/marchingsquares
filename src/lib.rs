@@ -412,7 +412,7 @@ fn get_contour_segments(
 }
 
 #[pyfunction]
-#[pyo3(signature=(array, shape, level, mask, is_fully_connected=false, tol=1e-10))]
+#[pyo3(signature=(array, shape, level, mask, is_fully_connected=false, tol=1e-16))]
 fn marching_squares(
     array: Vec<f64>,
     shape: (usize, usize),
