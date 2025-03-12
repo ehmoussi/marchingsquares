@@ -4,7 +4,6 @@ from typing import Generator
 import marchingsquares
 from marchingalgo._find_contours_cy import _get_contour_segments
 from marchingalgo import find_contours
-import marchingsquares.marchingsquares
 from numpy.typing import NDArray
 
 import numpy as np
@@ -73,11 +72,9 @@ def array() -> NDArray[np.float64]:
 
 def test_get_contour_segments(array: NDArray[np.float64]) -> None:
     segments_ref = _get_contour_segments(array, 0.5, False, None)
-    segments = np.array(
-        marchingsquares.get_contour_segments(
-            array.flatten().tolist(), (array.shape[0], array.shape[1]), level=0.5
-        )
-    ).reshape(-1, 4)
+    segments = np.array(marchingsquares.get_contour_segments(array, level=0.5)).reshape(
+        -1, 4
+    )
     assert len(segments) == len(
         segments_ref
     ), f"The number of segments is different {len(segments)}!={len(segments_ref)}"
@@ -89,15 +86,13 @@ def test_get_contour_segments(array: NDArray[np.float64]) -> None:
 
 
 def test_marching_squares(array: NDArray[np.float64]) -> None:
-    contours_ref = find_contours(np.array(array), 0.5)
-    contours = marchingsquares.marching_squares(
-        array.flatten().tolist(), (array.shape[0], array.shape[1]), level=0.5
-    )
+    contours_ref = find_contours(array, level=0.5)
+    contours = marchingsquares.marching_squares(array, level=0.5)
     assert len(contours) == len(
         contours_ref
     ), f"The number of contours is different {len(contours)}!={len(contours_ref)}"
     for contour, contour_ref in zip(contours, contours_ref):
-        assert len(contour) / 2 == len(contour_ref)
+        assert contour.shape == contour_ref.shape
         for point, point_ref in zip(np.array(contour).reshape(-1, 2), contour_ref):
             assert marchingsquares.close(
                 point[0], point[1], point_ref[0], point_ref[1], 1e-16
@@ -113,20 +108,17 @@ def random_array() -> NDArray[np.float64]:
 
 def test_get_contour_segments_random(random_array: NDArray[np.float64]) -> None:
     with measure_time(is_ref=True):
-        segments_ref = _get_contour_segments(random_array, 0.5, False, None)
-    flat_random_array = random_array.flatten().tolist()
-    with measure_time(is_ref=False):
-        segments = marchingsquares.get_contour_segments(
-            flat_random_array,
-            (random_array.shape[0], random_array.shape[1]),
-            level=0.5,
+        segments_ref = np.asarray(
+            _get_contour_segments(random_array, 0.5, False, None),
         )
-    segments_a = np.array(segments).reshape(-1, 4)
-    assert len(segments_a) == len(
-        segments_ref
-    ), f"The number of segments is different {len(segments)}!={len(segments_ref)}"
-    for segment, segment_ref in zip(segments_a, segments_ref):
-        for point, point_ref in zip(segment.reshape(2, 2), segment_ref):
+        segments_ref = segments_ref.reshape(len(segments_ref), 2, 2)
+    with measure_time(is_ref=False):
+        segments = marchingsquares.get_contour_segments(random_array, level=0.5)
+    assert (
+        segments.shape == segments_ref.shape
+    ), f"The number of segments is different {segments.shape}!={segments_ref.shape}"
+    for segment, segment_ref in zip(segments, segments_ref):
+        for point, point_ref in zip(segment, segment_ref):
             assert marchingsquares.close(
                 point[0], point[1], point_ref[0], point_ref[1], 1e-16
             ), f"({point[0]}, {point[1]}) != ({point_ref[0]}, {point_ref[1]})"
@@ -134,21 +126,15 @@ def test_get_contour_segments_random(random_array: NDArray[np.float64]) -> None:
 
 def test_marching_squares_random(random_array: NDArray[np.float64]) -> None:
     with measure_time(is_ref=True):
-        contours_ref = find_contours(random_array, 0.5)
-    flat_random_array = random_array.flatten().tolist()
+        contours_ref = find_contours(random_array, level=0.5)
     with measure_time(is_ref=False):
-        contours = marchingsquares.marching_squares(
-            flat_random_array,
-            (random_array.shape[0], random_array.shape[1]),
-            level=0.5,
-            tol=1e-16,
-        )
+        contours = marchingsquares.marching_squares(random_array, level=0.5, tol=1e-16)
     assert len(contours) == len(
         contours_ref
     ), f"The number of contours is different {len(contours)}!={len(contours_ref)}"
     for contour, contour_ref in zip(contours, contours_ref):
-        assert len(contour) / 2 == len(contour_ref)
-        for point, point_ref in zip(np.array(contour).reshape(-1, 2), contour_ref):
+        assert contour.shape == (contour_ref.shape)
+        for point, point_ref in zip(contour, contour_ref):
             assert marchingsquares.close(
                 point[0], point[1], point_ref[0], point_ref[1], 1e-16
             ), f"({point[0]}, {point[1]}) != ({point_ref[0]}, {point_ref[1]})"
@@ -168,22 +154,18 @@ def test_get_contour_segments_random_with_mask(
     random_array: NDArray[np.float64], random_mask: NDArray[np.bool]
 ) -> None:
     with measure_time(is_ref=True):
-        segments_ref = _get_contour_segments(random_array, 0.5, False, mask=random_mask)
-    flat_random_array = random_array.flatten().tolist()
-    flatten_random_mask = random_mask.flatten().tolist()
+        segments_ref = np.asarray(
+            _get_contour_segments(random_array, 0.5, False, mask=random_mask)
+        ).reshape(-1, 2, 2)
     with measure_time(is_ref=False):
         segments = marchingsquares.get_contour_segments(
-            flat_random_array,
-            (random_array.shape[0], random_array.shape[1]),
-            level=0.5,
-            mask=flatten_random_mask,
+            random_array, level=0.5, mask=random_mask
         )
-    segments_a = np.array(segments).reshape(-1, 4)
-    assert len(segments_a) == len(
-        segments_ref
-    ), f"The number of segments is different {len(segments_a)}!={len(segments_ref)}"
-    for segment, segment_ref in zip(segments_a, segments_ref):
-        for point, point_ref in zip(segment.reshape(2, 2), segment_ref):
+    assert (
+        segments.shape == segments_ref.shape
+    ), f"The number of segments is different {len(segments)}!={len(segments_ref)}"
+    for segment, segment_ref in zip(segments, segments_ref):
+        for point, point_ref in zip(segment, segment_ref):
             assert marchingsquares.close(
                 point[0], point[1], point_ref[0], point_ref[1], 1e-16
             ), f"({point[0]}, {point[1]}) != ({point_ref[0]}, {point_ref[1]})"
@@ -194,22 +176,16 @@ def test_marching_squares_random_with_mask(
 ) -> None:
     with measure_time(is_ref=True):
         contours_ref = find_contours(random_array, 0.5, mask=random_mask)
-    flat_random_array = random_array.flatten().tolist()
-    flatten_random_mask = random_mask.flatten().tolist()
     with measure_time(is_ref=False):
         contours = marchingsquares.marching_squares(
-            flat_random_array,
-            (random_array.shape[0], random_array.shape[1]),
-            level=0.5,
-            tol=1e-16,
-            mask=flatten_random_mask,
+            random_array, level=0.5, tol=1e-16, mask=random_mask
         )
     assert len(contours) == len(
         contours_ref
     ), f"The number of contours is different {len(contours)}!={len(contours_ref)}"
     for contour, contour_ref in zip(contours, contours_ref):
-        assert len(contour) / 2 == len(contour_ref)
-        for point, point_ref in zip(np.array(contour).reshape(-1, 2), contour_ref):
+        assert contour.shape == (contour_ref.shape)
+        for point, point_ref in zip(contour, contour_ref):
             assert marchingsquares.close(
                 point[0], point[1], point_ref[0], point_ref[1], 1e-16
             ), f"({point[0]}, {point[1]}) != ({point_ref[0]}, {point_ref[1]})"
@@ -220,16 +196,10 @@ def test_marching_squares_with_incorrect_mask_size(
 ) -> None:
     mask = random_mask[:, :-1]
     with pytest.raises(ValueError, match="must have the same length"):
-        marchingsquares.marching_squares(
-            random_array.flatten().tolist(),
-            (random_array.shape[0], random_array.shape[1]),
-            level=0.5,
-            tol=1e-16,
-            mask=mask.flatten().tolist(),
-        )
+        marchingsquares.marching_squares(random_array, level=0.5, tol=1e-16, mask=mask)
 
 
 def test_bad_array_shape():
     array = [0, 1, 1]
     with pytest.raises(ValueError, match="given shape are incompatible"):
-        marchingsquares.marching_squares(array, (2, 2), 0.5)
+        marchingsquares.marching_squares(array, level=0.5)

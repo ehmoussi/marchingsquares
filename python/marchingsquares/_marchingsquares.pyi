@@ -1,23 +1,25 @@
-from typing import List, Optional, Tuple
+from typing import Sequence, Tuple, Union
+from numpy.typing import ArrayLike
+import numpy as np
 
 def close(p1_x: float, p1_y: float, p2_x: float, p2_y: float, tol: float) -> bool:
     pass
 
 def get_contour_segments(
-    array: List[float],
+    array: ArrayLike,
     shape: Tuple[int, int],
     level: float,
+    mask: ArrayLike,
     vertex_connect_high: bool = False,
-    mask: Optional[List[bool]] = None,
-) -> List[float]:
+) -> ArrayLike:
     pass
 
 def marching_squares(
-    array: List[float],
+    array: ArrayLike,
     shape: Tuple[int, int],
     level: float,
+    mask: ArrayLike,
     is_fully_connected: bool = False,
-    mask: Optional[List[bool]] = None,
     tol=1e-10,
-) -> List[List[float]]:
+) -> Sequence[ArrayLike]:
     pass

@@ -55,209 +55,13 @@ fn right_y(_: usize, c: usize, _: f64, _: f64, _: f64) -> f64 {
     c as f64
 }
 
-#[inline]
-fn marching_square(
-    r0: usize,
-    c0: usize,
-    r1: usize,
-    c1: usize,
-    ul: f64,
-    ur: f64,
-    ll: f64,
-    lr: f64,
-    level: f64,
-    vertex_connect_high: bool,
-    current_index: &mut usize,
-    segments: &mut Vec<f64>,
-    indices: &mut Vec<Option<usize>>,
-) -> () {
-    let square_case = 1 * u8::from(ul > level) as u8
-        | 2 * (ur > level) as u8
-        | 4 * (ll > level) as u8
-        | 8 * (lr > level) as u8;
-    match square_case {
-        1 | 2 | 3 | 4 | 5 | 7 | 8 | 10 | 11 | 12 | 13 | 14 => {
-            indices[*current_index] = Some(segments.len() / 4);
-            *current_index += 2;
-        }
-        6 | 9 => {
-            indices[*current_index] = Some(segments.len() / 4);
-            *current_index += 1;
-            indices[*current_index] = Some((segments.len() / 4) + 1);
-            *current_index += 1;
-        }
-        0 | 15 => *current_index += 2,
-        other_case => unreachable!("Unexpected case: {}", other_case),
-    }
-    match square_case {
-        1 => segments.extend([
-            top_x(r0, c0, ul, ur, level),
-            top_y(r0, c0, ul, ur, level),
-            left_x(r0, c0, ul, ll, level),
-            left_y(r0, c0, ul, ll, level),
-        ]),
-        2 => segments.extend([
-            right_x(r0, c1, ur, lr, level),
-            right_y(r0, c1, ur, lr, level),
-            top_x(r0, c0, ul, ur, level),
-            top_y(r0, c0, ul, ur, level),
-        ]),
-        3 => segments.extend([
-            right_x(r0, c1, ur, lr, level),
-            right_y(r0, c1, ur, lr, level),
-            left_x(r0, c0, ul, ll, level),
-            left_y(r0, c0, ul, ll, level),
-        ]),
-        4 => segments.extend([
-            left_x(r0, c0, ul, ll, level),
-            left_y(r0, c0, ul, ll, level),
-            bottom_x(r1, c0, ll, lr, level),
-            bottom_y(r1, c0, ll, lr, level),
-        ]),
-        5 => segments.extend([
-            top_x(r0, c0, ul, ur, level),
-            top_y(r0, c0, ul, ur, level),
-            bottom_x(r1, c0, ll, lr, level),
-            bottom_y(r1, c0, ll, lr, level),
-        ]),
-        6 => match vertex_connect_high {
-            true => segments.extend([
-                left_x(r0, c0, ul, ll, level),
-                left_y(r0, c0, ul, ll, level),
-                top_x(r0, c0, ul, ur, level),
-                top_y(r0, c0, ul, ur, level),
-                // seg 2
-                right_x(r0, c1, ur, lr, level),
-                right_y(r0, c1, ur, lr, level),
-                bottom_x(r1, c0, ll, lr, level),
-                bottom_y(r1, c0, ll, lr, level),
-            ]),
-            false => segments.extend([
-                right_x(r0, c1, ur, lr, level),
-                right_y(r0, c1, ur, lr, level),
-                top_x(r0, c0, ul, ur, level),
-                top_y(r0, c0, ul, ur, level),
-                // seg 2
-                left_x(r0, c0, ul, ll, level),
-                left_y(r0, c0, ul, ll, level),
-                bottom_x(r1, c0, ll, lr, level),
-                bottom_y(r1, c0, ll, lr, level),
-            ]),
-        },
-        7 => segments.extend([
-            right_x(r0, c1, ur, lr, level),
-            right_y(r0, c1, ur, lr, level),
-            bottom_x(r1, c0, ll, lr, level),
-            bottom_y(r1, c0, ll, lr, level),
-        ]),
-        8 => segments.extend([
-            bottom_x(r1, c0, ll, lr, level),
-            bottom_y(r1, c0, ll, lr, level),
-            right_x(r0, c1, ur, lr, level),
-            right_y(r0, c1, ur, lr, level),
-        ]),
-        9 => match vertex_connect_high {
-            true => segments.extend([
-                top_x(r0, c0, ul, ur, level),
-                top_y(r0, c0, ul, ur, level),
-                right_x(r0, c1, ur, lr, level),
-                right_y(r0, c1, ur, lr, level),
-                // seg 2
-                bottom_x(r1, c0, ll, lr, level),
-                bottom_y(r1, c0, ll, lr, level),
-                left_x(r0, c0, ul, ll, level),
-                left_y(r0, c0, ul, ll, level),
-            ]),
-            false => segments.extend([
-                top_x(r0, c0, ul, ur, level),
-                top_y(r0, c0, ul, ur, level),
-                left_x(r0, c0, ul, ll, level),
-                left_y(r0, c0, ul, ll, level),
-                // seg 2
-                bottom_x(r1, c0, ll, lr, level),
-                bottom_y(r1, c0, ll, lr, level),
-                right_x(r0, c1, ur, lr, level),
-                right_y(r0, c1, ur, lr, level),
-            ]),
-        },
-        10 => segments.extend([
-            bottom_x(r1, c0, ll, lr, level),
-            bottom_y(r1, c0, ll, lr, level),
-            top_x(r0, c0, ul, ur, level),
-            top_y(r0, c0, ul, ur, level),
-        ]),
-        11 => segments.extend([
-            bottom_x(r1, c0, ll, lr, level),
-            bottom_y(r1, c0, ll, lr, level),
-            left_x(r0, c0, ul, ll, level),
-            left_y(r0, c0, ul, ll, level),
-        ]),
-        12 => segments.extend([
-            left_x(r0, c0, ul, ll, level),
-            left_y(r0, c0, ul, ll, level),
-            right_x(r0, c1, ur, lr, level),
-            right_y(r0, c1, ur, lr, level),
-        ]),
-        13 => segments.extend([
-            top_x(r0, c0, ul, ur, level),
-            top_y(r0, c0, ul, ur, level),
-            right_x(r0, c1, ur, lr, level),
-            right_y(r0, c1, ur, lr, level),
-        ]),
-        14 => segments.extend([
-            left_x(r0, c0, ul, ll, level),
-            left_y(r0, c0, ul, ll, level),
-            top_x(r0, c0, ul, ur, level),
-            top_y(r0, c0, ul, ur, level),
-        ]),
-        0 | 15 => (), // No segments pass through the square
-        other_case => unreachable!("Unexpected case: {}", other_case),
-    }
-}
-
-#[inline]
-fn to_grid_mask(
-    mask: Option<&Vec<bool>>,
-    array: &Vec<f64>,
-    nb_rows: usize,
-    nb_cols: usize,
-) -> Result<Vec<u8>, String> {
-    let mut grid_mask = vec![1; (nb_rows - 1) * (nb_cols - 1)];
-    match mask {
-        Some(mask) => {
-            if array.len() != mask.len() {
-                return Err(format!(
-            "The array and the mask must have the same length, {array_len:?} != {mask_len:?}",
-            array_len = array.len(),
-            mask_len = mask.len(),
-        ));
-            }
-            for r0 in 0..(nb_rows - 1) {
-                let r1 = r0 + 1;
-                for c0 in 0..(nb_cols - 1) {
-                    let c1 = c0 + 1;
-                    unsafe {
-                        grid_mask[r0 * (nb_cols - 1) + c0] = *mask.get_unchecked(r0 * nb_cols + c0)
-                            as u8
-                            * *mask.get_unchecked(r0 * nb_cols + c1) as u8
-                            * *mask.get_unchecked(r1 * nb_cols + c0) as u8
-                            * *mask.get_unchecked(r1 * nb_cols + c1) as u8;
-                    }
-                }
-            }
-        }
-        None => (),
-    }
-    Ok(grid_mask)
-}
-
 fn _get_contour_segments(
     array: &Vec<f64>,
     nb_rows: usize,
     nb_cols: usize,
     level: f64,
     vertex_connect_high: bool,
-    grid_mask: &Vec<u8>,
+    mask: &Vec<u8>,
 ) -> Result<(Vec<f64>, Vec<Option<usize>>), String> {
     if array.len() != nb_rows * nb_cols {
         return Err(format!(
@@ -273,33 +77,166 @@ fn _get_contour_segments(
         for c0 in 0..(nb_cols - 1) {
             let c1 = c0 + 1;
             let (ul, ll, ur, lr): (f64, f64, f64, f64);
-            let is_masked: bool;
+            let is_masked: u8;
             unsafe {
-                ul = *array.get_unchecked(r0 * nb_cols + c0);
-                ll = *array.get_unchecked(r1 * nb_cols + c0);
-                ur = *array.get_unchecked(r0 * nb_cols + c1);
-                lr = *array.get_unchecked(r1 * nb_cols + c1);
-                is_masked = *grid_mask.get_unchecked(r0 * (nb_cols - 1) + c0) == 0;
+                let ul_index = r0 * nb_cols + c0;
+                let ll_index = r1 * nb_cols + c0;
+                let ur_index = r0 * nb_cols + c1;
+                let lr_index = r1 * nb_cols + c1;
+                ul = *array.get_unchecked(ul_index);
+                ll = *array.get_unchecked(ll_index);
+                ur = *array.get_unchecked(ur_index);
+                lr = *array.get_unchecked(lr_index);
+                is_masked = *mask.get_unchecked(ul_index)
+                    * *mask.get_unchecked(ll_index)
+                    * *mask.get_unchecked(ur_index)
+                    * *mask.get_unchecked(lr_index);
             }
-            match is_masked {
-                true => current_index += 2,
-                false => {
-                    marching_square(
-                        r0,
-                        c0,
-                        r1,
-                        c1,
-                        ul,
-                        ur,
-                        ll,
-                        lr,
-                        level,
-                        vertex_connect_high,
-                        &mut current_index,
-                        &mut segments,
-                        &mut indices,
-                    );
+            if is_masked == 0 {
+                current_index += 2;
+                continue;
+            }
+            let square_case = 1 * u8::from(ul > level) as u8
+                | 2 * (ur > level) as u8
+                | 4 * (ll > level) as u8
+                | 8 * (lr > level) as u8;
+            match square_case {
+                1 | 2 | 3 | 4 | 5 | 7 | 8 | 10 | 11 | 12 | 13 | 14 => {
+                    indices[current_index] = Some(segments.len() / 4);
+                    current_index += 2;
                 }
+                6 | 9 => {
+                    indices[current_index] = Some(segments.len() / 4);
+                    current_index += 1;
+                    indices[current_index] = Some((segments.len() / 4) + 1);
+                    current_index += 1;
+                }
+                0 | 15 => current_index += 2,
+                other_case => unreachable!("Unexpected case: {}", other_case),
+            }
+            match square_case {
+                1 => segments.extend([
+                    top_x(r0, c0, ul, ur, level),
+                    top_y(r0, c0, ul, ur, level),
+                    left_x(r0, c0, ul, ll, level),
+                    left_y(r0, c0, ul, ll, level),
+                ]),
+                2 => segments.extend([
+                    right_x(r0, c1, ur, lr, level),
+                    right_y(r0, c1, ur, lr, level),
+                    top_x(r0, c0, ul, ur, level),
+                    top_y(r0, c0, ul, ur, level),
+                ]),
+                3 => segments.extend([
+                    right_x(r0, c1, ur, lr, level),
+                    right_y(r0, c1, ur, lr, level),
+                    left_x(r0, c0, ul, ll, level),
+                    left_y(r0, c0, ul, ll, level),
+                ]),
+                4 => segments.extend([
+                    left_x(r0, c0, ul, ll, level),
+                    left_y(r0, c0, ul, ll, level),
+                    bottom_x(r1, c0, ll, lr, level),
+                    bottom_y(r1, c0, ll, lr, level),
+                ]),
+                5 => segments.extend([
+                    top_x(r0, c0, ul, ur, level),
+                    top_y(r0, c0, ul, ur, level),
+                    bottom_x(r1, c0, ll, lr, level),
+                    bottom_y(r1, c0, ll, lr, level),
+                ]),
+                6 => match vertex_connect_high {
+                    true => segments.extend([
+                        left_x(r0, c0, ul, ll, level),
+                        left_y(r0, c0, ul, ll, level),
+                        top_x(r0, c0, ul, ur, level),
+                        top_y(r0, c0, ul, ur, level),
+                        // seg 2
+                        right_x(r0, c1, ur, lr, level),
+                        right_y(r0, c1, ur, lr, level),
+                        bottom_x(r1, c0, ll, lr, level),
+                        bottom_y(r1, c0, ll, lr, level),
+                    ]),
+                    false => segments.extend([
+                        right_x(r0, c1, ur, lr, level),
+                        right_y(r0, c1, ur, lr, level),
+                        top_x(r0, c0, ul, ur, level),
+                        top_y(r0, c0, ul, ur, level),
+                        // seg 2
+                        left_x(r0, c0, ul, ll, level),
+                        left_y(r0, c0, ul, ll, level),
+                        bottom_x(r1, c0, ll, lr, level),
+                        bottom_y(r1, c0, ll, lr, level),
+                    ]),
+                },
+                7 => segments.extend([
+                    right_x(r0, c1, ur, lr, level),
+                    right_y(r0, c1, ur, lr, level),
+                    bottom_x(r1, c0, ll, lr, level),
+                    bottom_y(r1, c0, ll, lr, level),
+                ]),
+                8 => segments.extend([
+                    bottom_x(r1, c0, ll, lr, level),
+                    bottom_y(r1, c0, ll, lr, level),
+                    right_x(r0, c1, ur, lr, level),
+                    right_y(r0, c1, ur, lr, level),
+                ]),
+                9 => match vertex_connect_high {
+                    true => segments.extend([
+                        top_x(r0, c0, ul, ur, level),
+                        top_y(r0, c0, ul, ur, level),
+                        right_x(r0, c1, ur, lr, level),
+                        right_y(r0, c1, ur, lr, level),
+                        // seg 2
+                        bottom_x(r1, c0, ll, lr, level),
+                        bottom_y(r1, c0, ll, lr, level),
+                        left_x(r0, c0, ul, ll, level),
+                        left_y(r0, c0, ul, ll, level),
+                    ]),
+                    false => segments.extend([
+                        top_x(r0, c0, ul, ur, level),
+                        top_y(r0, c0, ul, ur, level),
+                        left_x(r0, c0, ul, ll, level),
+                        left_y(r0, c0, ul, ll, level),
+                        // seg 2
+                        bottom_x(r1, c0, ll, lr, level),
+                        bottom_y(r1, c0, ll, lr, level),
+                        right_x(r0, c1, ur, lr, level),
+                        right_y(r0, c1, ur, lr, level),
+                    ]),
+                },
+                10 => segments.extend([
+                    bottom_x(r1, c0, ll, lr, level),
+                    bottom_y(r1, c0, ll, lr, level),
+                    top_x(r0, c0, ul, ur, level),
+                    top_y(r0, c0, ul, ur, level),
+                ]),
+                11 => segments.extend([
+                    bottom_x(r1, c0, ll, lr, level),
+                    bottom_y(r1, c0, ll, lr, level),
+                    left_x(r0, c0, ul, ll, level),
+                    left_y(r0, c0, ul, ll, level),
+                ]),
+                12 => segments.extend([
+                    left_x(r0, c0, ul, ll, level),
+                    left_y(r0, c0, ul, ll, level),
+                    right_x(r0, c1, ur, lr, level),
+                    right_y(r0, c1, ur, lr, level),
+                ]),
+                13 => segments.extend([
+                    top_x(r0, c0, ul, ur, level),
+                    top_y(r0, c0, ul, ur, level),
+                    right_x(r0, c1, ur, lr, level),
+                    right_y(r0, c1, ur, lr, level),
+                ]),
+                14 => segments.extend([
+                    left_x(r0, c0, ul, ll, level),
+                    left_y(r0, c0, ul, ll, level),
+                    top_x(r0, c0, ul, ur, level),
+                    top_y(r0, c0, ul, ur, level),
+                ]),
+                0 | 15 => (), // No segments pass through the square
+                other_case => unreachable!("Unexpected case: {}", other_case),
             }
         }
         // add the last column
@@ -454,50 +391,32 @@ fn find_previous_segment(
 }
 
 #[pyfunction]
-#[pyo3(signature=(array, shape, level, vertex_connect_high=false, mask=None))]
+#[pyo3(signature=(array, shape, level, mask, vertex_connect_high=false))]
 fn get_contour_segments(
     array: Vec<f64>,
     shape: (usize, usize),
     level: f64,
+    mask: Vec<u8>,
     vertex_connect_high: bool,
-    mask: Option<Vec<bool>>,
 ) -> PyResult<Vec<f64>> {
-    let grid_mask =
-        to_grid_mask(mask.as_ref(), &array, shape.0, shape.1).map_err(PyValueError::new_err)?;
-    match _get_contour_segments(
-        &array,
-        shape.0,
-        shape.1,
-        level,
-        vertex_connect_high,
-        &grid_mask,
-    ) {
+    match _get_contour_segments(&array, shape.0, shape.1, level, vertex_connect_high, &mask) {
         Ok((segments, _)) => Ok(segments),
         Err(msg) => Err(PyValueError::new_err(msg)),
     }
 }
 
 #[pyfunction]
-#[pyo3(signature=(array, shape, level, is_fully_connected=false, mask=None, tol=1e-10))]
+#[pyo3(signature=(array, shape, level, mask, is_fully_connected=false, tol=1e-10))]
 fn marching_squares(
     array: Vec<f64>,
     shape: (usize, usize),
     level: f64,
+    mask: Vec<u8>,
     is_fully_connected: bool,
-    mask: Option<Vec<bool>>,
     tol: f64,
 ) -> PyResult<Vec<Vec<f64>>> {
     let (nb_rows, nb_cols) = shape;
-    let grid_mask =
-        to_grid_mask(mask.as_ref(), &array, nb_rows, nb_cols).map_err(PyValueError::new_err)?;
-    match _get_contour_segments(
-        &array,
-        shape.0,
-        shape.1,
-        level,
-        is_fully_connected,
-        &grid_mask,
-    ) {
+    match _get_contour_segments(&array, shape.0, shape.1, level, is_fully_connected, &mask) {
         Ok((segments, indices)) => {
             debug_assert_eq!(indices.len(), 2 * nb_rows * nb_cols);
             Ok(assemble_contours(&segments, &indices, nb_cols, tol))
@@ -508,7 +427,7 @@ fn marching_squares(
 
 // Marching squares algorithm
 #[pymodule]
-fn marchingsquares(m: &Bound<'_, PyModule>) -> PyResult<()> {
+fn _marchingsquares(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(close, m)?)?;
     m.add_function(wrap_pyfunction!(get_contour_segments, m)?)?;
     m.add_function(wrap_pyfunction!(marching_squares, m)?)?;

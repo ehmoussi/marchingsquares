@@ -13,11 +13,12 @@ classifiers = [
     "Programming Language :: Python :: Implementation :: PyPy",
 ]
 dynamic = ["version"]
-dependencies = []
+dependencies = ["numpy>=1.21"]
 
 [tool.maturin]
 features = ["pyo3/extension-module"]
-python-sources = "python"
+python-source = "python"
+module-name="marchingsquares._marchingsquares"
 
 [tool.uv.sources]
 marchingalgo = { git = "https://github.com/ehmoussi/marchingalgo.git" }
@@ -27,4 +28,8 @@ dev = [
     "marchingalgo",
     "maturin>=0.12.20",
     "pytest",
+    "mypy",
 ]
+
+[mypy]
+plugins = "numpy.typing.mypy_plugin"
