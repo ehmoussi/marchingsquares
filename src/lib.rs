@@ -65,7 +65,6 @@ fn _get_contour_segments(
 ) -> (Vec<f64>, Vec<Option<usize>>) {
     let mut segments = Vec::with_capacity(nb_rows * nb_cols);
     let mut indices = vec![None; 2 * nb_rows * nb_cols];
-    let mut current_index: usize = 0;
     for r0 in 0..(nb_rows - 1) {
         let r1 = r0 + 1;
         for c0 in 0..(nb_cols - 1) {
@@ -86,61 +85,57 @@ fn _get_contour_segments(
                     * *mask.get_unchecked(ur_index)
                     * *mask.get_unchecked(lr_index);
             }
-            if is_masked == 0 {
-                current_index += 2;
-                continue;
-            }
-            let square_case = 1 * u8::from(ul > level) as u8
-                | 2 * (ur > level) as u8
-                | 4 * (ll > level) as u8
-                | 8 * (lr > level) as u8;
+            let square_case = is_masked
+                * (1 * u8::from(ul > level) as u8
+                    | 2 * (ur > level) as u8
+                    | 4 * (ll > level) as u8
+                    | 8 * (lr > level) as u8);
+            let current_index: usize = r0 * (2 * nb_cols) + c0 * 2;
             match square_case {
                 1 | 2 | 3 | 4 | 5 | 7 | 8 | 10 | 11 | 12 | 13 | 14 => {
                     indices[current_index] = Some(segments.len() / 4);
-                    current_index += 2;
                 }
                 6 | 9 => {
-                    indices[current_index] = Some(segments.len() / 4);
-                    current_index += 1;
-                    indices[current_index] = Some((segments.len() / 4) + 1);
-                    current_index += 1;
+                    let n = segments.len() / 4;
+                    indices[current_index] = Some(n);
+                    indices[current_index + 1] = Some(n + 1);
                 }
-                0 | 15 => current_index += 2,
+                0 | 15 => (),
                 other_case => unreachable!("Unexpected case: {}", other_case),
             }
-            match square_case {
-                1 => segments.extend([
+            let square_segments = match square_case {
+                1 => vec![
                     top_x(r0, c0, ul, ur, level),
                     top_y(r0, c0, ul, ur, level),
                     left_x(r0, c0, ul, ll, level),
                     left_y(r0, c0, ul, ll, level),
-                ]),
-                2 => segments.extend([
+                ],
+                2 => vec![
                     right_x(r0, c1, ur, lr, level),
                     right_y(r0, c1, ur, lr, level),
                     top_x(r0, c0, ul, ur, level),
                     top_y(r0, c0, ul, ur, level),
-                ]),
-                3 => segments.extend([
+                ],
+                3 => vec![
                     right_x(r0, c1, ur, lr, level),
                     right_y(r0, c1, ur, lr, level),
                     left_x(r0, c0, ul, ll, level),
                     left_y(r0, c0, ul, ll, level),
-                ]),
-                4 => segments.extend([
+                ],
+                4 => vec![
                     left_x(r0, c0, ul, ll, level),
                     left_y(r0, c0, ul, ll, level),
                     bottom_x(r1, c0, ll, lr, level),
                     bottom_y(r1, c0, ll, lr, level),
-                ]),
-                5 => segments.extend([
+                ],
+                5 => vec![
                     top_x(r0, c0, ul, ur, level),
                     top_y(r0, c0, ul, ur, level),
                     bottom_x(r1, c0, ll, lr, level),
                     bottom_y(r1, c0, ll, lr, level),
-                ]),
+                ],
                 6 => match vertex_connect_high {
-                    true => segments.extend([
+                    true => vec![
                         left_x(r0, c0, ul, ll, level),
                         left_y(r0, c0, ul, ll, level),
                         top_x(r0, c0, ul, ur, level),
@@ -150,8 +145,8 @@ fn _get_contour_segments(
                         right_y(r0, c1, ur, lr, level),
                         bottom_x(r1, c0, ll, lr, level),
                         bottom_y(r1, c0, ll, lr, level),
-                    ]),
-                    false => segments.extend([
+                    ],
+                    false => vec![
                         right_x(r0, c1, ur, lr, level),
                         right_y(r0, c1, ur, lr, level),
                         top_x(r0, c0, ul, ur, level),
@@ -161,22 +156,22 @@ fn _get_contour_segments(
                         left_y(r0, c0, ul, ll, level),
                         bottom_x(r1, c0, ll, lr, level),
                         bottom_y(r1, c0, ll, lr, level),
-                    ]),
+                    ],
                 },
-                7 => segments.extend([
+                7 => vec![
                     right_x(r0, c1, ur, lr, level),
                     right_y(r0, c1, ur, lr, level),
                     bottom_x(r1, c0, ll, lr, level),
                     bottom_y(r1, c0, ll, lr, level),
-                ]),
-                8 => segments.extend([
+                ],
+                8 => vec![
                     bottom_x(r1, c0, ll, lr, level),
                     bottom_y(r1, c0, ll, lr, level),
                     right_x(r0, c1, ur, lr, level),
                     right_y(r0, c1, ur, lr, level),
-                ]),
+                ],
                 9 => match vertex_connect_high {
-                    true => segments.extend([
+                    true => vec![
                         top_x(r0, c0, ul, ur, level),
                         top_y(r0, c0, ul, ur, level),
                         right_x(r0, c1, ur, lr, level),
@@ -186,8 +181,8 @@ fn _get_contour_segments(
                         bottom_y(r1, c0, ll, lr, level),
                         left_x(r0, c0, ul, ll, level),
                         left_y(r0, c0, ul, ll, level),
-                    ]),
-                    false => segments.extend([
+                    ],
+                    false => vec![
                         top_x(r0, c0, ul, ur, level),
                         top_y(r0, c0, ul, ur, level),
                         left_x(r0, c0, ul, ll, level),
@@ -197,49 +192,44 @@ fn _get_contour_segments(
                         bottom_y(r1, c0, ll, lr, level),
                         right_x(r0, c1, ur, lr, level),
                         right_y(r0, c1, ur, lr, level),
-                    ]),
+                    ],
                 },
-                10 => segments.extend([
+                10 => vec![
                     bottom_x(r1, c0, ll, lr, level),
                     bottom_y(r1, c0, ll, lr, level),
                     top_x(r0, c0, ul, ur, level),
                     top_y(r0, c0, ul, ur, level),
-                ]),
-                11 => segments.extend([
+                ],
+                11 => vec![
                     bottom_x(r1, c0, ll, lr, level),
                     bottom_y(r1, c0, ll, lr, level),
                     left_x(r0, c0, ul, ll, level),
                     left_y(r0, c0, ul, ll, level),
-                ]),
-                12 => segments.extend([
+                ],
+                12 => vec![
                     left_x(r0, c0, ul, ll, level),
                     left_y(r0, c0, ul, ll, level),
                     right_x(r0, c1, ur, lr, level),
                     right_y(r0, c1, ur, lr, level),
-                ]),
-                13 => segments.extend([
+                ],
+                13 => vec![
                     top_x(r0, c0, ul, ur, level),
                     top_y(r0, c0, ul, ur, level),
                     right_x(r0, c1, ur, lr, level),
                     right_y(r0, c1, ur, lr, level),
-                ]),
-                14 => segments.extend([
+                ],
+                14 => vec![
                     left_x(r0, c0, ul, ll, level),
                     left_y(r0, c0, ul, ll, level),
                     top_x(r0, c0, ul, ur, level),
                     top_y(r0, c0, ul, ur, level),
-                ]),
-                0 | 15 => (), // No segments pass through the square
+                ],
+                0 | 15 => vec![], // No segments pass through the square
                 other_case => unreachable!("Unexpected case: {}", other_case),
-            }
+            };
+            segments.extend(square_segments);
         }
-        // add the last column
-        current_index += 2;
     }
-    assert_eq!(
-        current_index + 2 * nb_cols, // add the last row
-        2 * nb_rows * nb_cols
-    );
     (segments, indices)
 }
 
