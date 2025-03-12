@@ -13,9 +13,16 @@ def get_contour_segments(
     mask: Optional[NDArray[np.bool]] = None,
 ) -> NDArray[np.float64]:
     array = np.asarray(array, dtype=np.float64)
+    if len(array.shape) != 2:
+        raise ValueError("The array should have a 2d dimension")
     shape = (array.shape[0], array.shape[1])
     array = array.flatten()
     if mask is not None:
+        _mask = np.asarray(mask, dtype=np.uint8)
+        if _mask.shape != shape:
+            raise ValueError(
+                f"The array and the mask must have the same length, {mask.shape} != {shape}"
+            )
         _mask = np.asarray(mask, dtype=np.uint8).flatten()
     else:
         _mask = np.ones(array.shape, dtype=np.uint8)
@@ -38,10 +45,17 @@ def marching_squares(
     tol=1e-10,
 ) -> List[NDArray[np.float64]]:
     array = np.asarray(array, dtype=np.float64)
+    if len(array.shape) != 2:
+        raise ValueError("The array should have a 2d dimension")
     shape = (array.shape[0], array.shape[1])
     array = array.flatten()
     if mask is not None:
-        _mask = np.asarray(mask, dtype=np.uint8).flatten()
+        _mask = np.asarray(mask, dtype=np.uint8)
+        if _mask.shape != shape:
+            raise ValueError(
+                f"The array and the mask must have the same length, {mask.shape} != {shape}"
+            )
+        _mask = _mask.flatten()
     else:
         _mask = np.ones(array.shape, dtype=np.uint8)
     return [

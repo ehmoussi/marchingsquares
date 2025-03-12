@@ -1,4 +1,4 @@
-use pyo3::{exceptions::PyValueError, prelude::*};
+use pyo3::prelude::*;
 
 #[inline]
 fn get_fraction(from_value: f64, to_value: f64, level: f64) -> f64 {
@@ -62,13 +62,7 @@ fn _get_contour_segments(
     level: f64,
     vertex_connect_high: bool,
     mask: &Vec<u8>,
-) -> Result<(Vec<f64>, Vec<Option<usize>>), String> {
-    if array.len() != nb_rows * nb_cols {
-        return Err(format!(
-            "The array and the given shape are incompatible: {array_len:?} != ({nb_rows} * {nb_cols})",
-            array_len = array.len(),
-        ));
-    }
+) -> (Vec<f64>, Vec<Option<usize>>) {
     let mut segments = Vec::with_capacity(nb_rows * nb_cols);
     let mut indices = vec![None; 2 * nb_rows * nb_cols];
     let mut current_index: usize = 0;
@@ -246,7 +240,7 @@ fn _get_contour_segments(
         current_index + 2 * nb_cols, // add the last row
         2 * nb_rows * nb_cols
     );
-    Ok((segments, indices))
+    (segments, indices)
 }
 
 fn assemble_contours(
@@ -398,11 +392,23 @@ fn get_contour_segments(
     level: f64,
     mask: Vec<u8>,
     vertex_connect_high: bool,
-) -> PyResult<Vec<f64>> {
-    match _get_contour_segments(&array, shape.0, shape.1, level, vertex_connect_high, &mask) {
-        Ok((segments, _)) => Ok(segments),
-        Err(msg) => Err(PyValueError::new_err(msg)),
-    }
+) -> Vec<f64> {
+    assert_eq!(
+        array.len(),
+        shape.0 * shape.1,
+        "The shape of the array is incorrect {array_len}!={shape_0}*{shape_1}",
+        array_len = array.len(),
+        shape_0 = shape.0,
+        shape_1 = shape.1
+    );
+    assert_eq!(
+        array.len(),
+        mask.len(),
+        "The array and the mask should have the same length: {array_len}!={mask_len}",
+        array_len = array.len(),
+        mask_len = mask.len()
+    );
+    _get_contour_segments(&array, shape.0, shape.1, level, vertex_connect_high, &mask).0
 }
 
 #[pyfunction]
@@ -414,15 +420,27 @@ fn marching_squares(
     mask: Vec<u8>,
     is_fully_connected: bool,
     tol: f64,
-) -> PyResult<Vec<Vec<f64>>> {
+) -> Vec<Vec<f64>> {
+    assert_eq!(
+        array.len(),
+        shape.0 * shape.1,
+        "The shape of the array is incorrect {array_len}!={shape_0}*{shape_1}",
+        array_len = array.len(),
+        shape_0 = shape.0,
+        shape_1 = shape.1
+    );
+    assert_eq!(
+        array.len(),
+        mask.len(),
+        "The array and the mask should have the same length: {array_len}!={mask_len}",
+        array_len = array.len(),
+        mask_len = mask.len()
+    );
     let (nb_rows, nb_cols) = shape;
-    match _get_contour_segments(&array, shape.0, shape.1, level, is_fully_connected, &mask) {
-        Ok((segments, indices)) => {
-            debug_assert_eq!(indices.len(), 2 * nb_rows * nb_cols);
-            Ok(assemble_contours(&segments, &indices, nb_cols, tol))
-        }
-        Err(msg) => Err(PyValueError::new_err(msg)),
-    }
+    let (segments, indices) =
+        _get_contour_segments(&array, shape.0, shape.1, level, is_fully_connected, &mask);
+    debug_assert_eq!(indices.len(), 2 * nb_rows * nb_cols);
+    assemble_contours(&segments, &indices, nb_cols, tol)
 }
 
 // Marching squares algorithm

@@ -201,5 +201,5 @@ def test_marching_squares_with_incorrect_mask_size(
 
 def test_bad_array_shape():
     array = [0, 1, 1]
-    with pytest.raises(ValueError, match="given shape are incompatible"):
+    with pytest.raises(ValueError, match="2d dimension"):
         marchingsquares.marching_squares(array, level=0.5)
