@@ -17,6 +17,7 @@ dependencies = []
 
 [tool.maturin]
 features = ["pyo3/extension-module"]
+python-sources = "python"
 
 [tool.uv.sources]
 marchingalgo = { git = "https://github.com/ehmoussi/marchingalgo.git" }
