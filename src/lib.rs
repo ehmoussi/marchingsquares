@@ -700,12 +700,13 @@ fn find_previous_segment(
 #[pyfunction]
 #[pyo3(signature=(array, shape, level, mask, vertex_connect_high=false))]
 fn get_contour_segments<'py>(
+    py: Python<'py>,
     array: PyReadonlyArrayDyn<'py, f64>,
     shape: (usize, usize),
     level: f64,
     mask: Option<PyReadonlyArrayDyn<'py, u8>>,
     vertex_connect_high: bool,
-) -> Vec<f64> {
+) -> Bound<'py, PyArrayDyn<f64>> {
     let array = array.as_array();
     debug_assert_eq!(
         array.len(),
@@ -715,7 +716,7 @@ fn get_contour_segments<'py>(
         shape_0 = shape.0,
         shape_1 = shape.1
     );
-    match mask {
+    let segments = match mask {
         Some(mask) => {
             let mask = mask.as_array();
             debug_assert_eq!(
@@ -732,7 +733,8 @@ fn get_contour_segments<'py>(
             let mask = mask.view().into_dyn();
             _get_contour_segments(&array, shape.0, shape.1, level, vertex_connect_high, &mask).0
         }
-    }
+    };
+    Array::from_vec(segments).into_dyn().into_pyarray(py)
 }
 
 #[pyfunction]
