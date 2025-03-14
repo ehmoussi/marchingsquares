@@ -1,17 +1,20 @@
 from marchingsquares import _marchingsquares
 from typing import List, Optional
 import numpy as np
-from numpy.typing import NDArray
+import typing
+
+if typing.TYPE_CHECKING:
+    from numpy.typing import NDArray
 
 close = _marchingsquares.close
 
 
 def get_contour_segments(
-    array: NDArray[np.float64],
+    array: "NDArray[np.float64]",
     level: float,
     vertex_connect_high: bool = False,
-    mask: Optional[NDArray[np.bool]] = None,
-) -> NDArray[np.float64]:
+    mask: Optional["NDArray[np.bool]"] = None,
+) -> "NDArray[np.float64]":
     array = np.asarray(array, dtype=np.float64)
     if len(array.shape) != 2:
         raise ValueError("The array should have a 2d dimension")
@@ -38,12 +41,12 @@ def get_contour_segments(
 
 
 def marching_squares(
-    array: NDArray[np.float64],
+    array: "NDArray[np.float64]",
     level: float,
     is_fully_connected: bool = False,
-    mask: Optional[NDArray[np.bool]] = None,
+    mask: Optional["NDArray[np.bool]"] = None,
     tol=1e-10,
-) -> List[NDArray[np.float64]]:
+) -> List["NDArray[np.float64]"]:
     array = np.asarray(array, dtype=np.float64)
     if len(array.shape) != 2:
         raise ValueError("The array should have a 2d dimension")

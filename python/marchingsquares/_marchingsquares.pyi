@@ -1,5 +1,8 @@
 from typing import Sequence, Tuple
-from numpy.typing import ArrayLike
+import typing
+
+if typing.TYPE_CHECKING:
+    from numpy.typing import ArrayLike
 
 def close(p1_x: float, p1_y: float, p2_x: float, p2_y: float, tol: float) -> bool:
     pass
