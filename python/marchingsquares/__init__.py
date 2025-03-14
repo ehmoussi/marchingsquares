@@ -28,7 +28,7 @@ def get_contour_segments(
             )
         _mask = np.asarray(mask, dtype=np.uint8).flatten()
     else:
-        _mask = np.ones(array.shape, dtype=np.uint8)
+        _mask = None
     return np.asarray(
         _marchingsquares.get_contour_segments(
             array,
@@ -60,7 +60,7 @@ def marching_squares(
             )
         _mask = _mask.flatten()
     else:
-        _mask = np.ones(array.shape, dtype=np.uint8)
+        _mask = None
     return [
         np.asarray(contour).reshape(-1, 2)
         for contour in _marchingsquares.marching_squares(

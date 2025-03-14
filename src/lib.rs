@@ -1,4 +1,4 @@
-use numpy::ndarray::ArrayViewD;
+use numpy::ndarray::{Array, ArrayViewD};
 use numpy::PyReadonlyArrayDyn;
 use pyo3::prelude::*;
 
@@ -703,12 +703,11 @@ fn get_contour_segments<'py>(
     array: PyReadonlyArrayDyn<'py, f64>,
     shape: (usize, usize),
     level: f64,
-    mask: PyReadonlyArrayDyn<'py, u8>,
+    mask: Option<PyReadonlyArrayDyn<'py, u8>>,
     vertex_connect_high: bool,
 ) -> Vec<f64> {
     let array = array.as_array();
-    let mask = mask.as_array();
-    assert_eq!(
+    debug_assert_eq!(
         array.len(),
         shape.0 * shape.1,
         "The shape of the array is incorrect {array_len}!={shape_0}*{shape_1}",
@@ -716,14 +715,24 @@ fn get_contour_segments<'py>(
         shape_0 = shape.0,
         shape_1 = shape.1
     );
-    assert_eq!(
-        array.len(),
-        mask.len(),
-        "The array and the mask should have the same length: {array_len}!={mask_len}",
-        array_len = array.len(),
-        mask_len = mask.len()
-    );
-    _get_contour_segments(&array, shape.0, shape.1, level, vertex_connect_high, &mask).0
+    match mask {
+        Some(mask) => {
+            let mask = mask.as_array();
+            debug_assert_eq!(
+                array.len(),
+                mask.len(),
+                "The array and the mask should have the same length: {array_len}!={mask_len}",
+                array_len = array.len(),
+                mask_len = mask.len()
+            );
+            _get_contour_segments(&array, shape.0, shape.1, level, vertex_connect_high, &mask).0
+        }
+        None => {
+            let mask = Array::from_vec(vec![1u8; array.len()]);
+            let mask = mask.view().into_dyn();
+            _get_contour_segments(&array, shape.0, shape.1, level, vertex_connect_high, &mask).0
+        }
+    }
 }
 
 #[pyfunction]
@@ -732,13 +741,12 @@ fn marching_squares<'py>(
     array: PyReadonlyArrayDyn<'py, f64>,
     shape: (usize, usize),
     level: f64,
-    mask: PyReadonlyArrayDyn<'py, u8>,
+    mask: Option<PyReadonlyArrayDyn<'py, u8>>,
     is_fully_connected: bool,
     tol: f64,
 ) -> Vec<Vec<f64>> {
     let array = array.as_array();
-    let mask = mask.as_array();
-    assert_eq!(
+    debug_assert_eq!(
         array.len(),
         shape.0 * shape.1,
         "The shape of the array is incorrect {array_len}!={shape_0}*{shape_1}",
@@ -746,16 +754,25 @@ fn marching_squares<'py>(
         shape_0 = shape.0,
         shape_1 = shape.1
     );
-    assert_eq!(
-        array.len(),
-        mask.len(),
-        "The array and the mask should have the same length: {array_len}!={mask_len}",
-        array_len = array.len(),
-        mask_len = mask.len()
-    );
+    let (segments, square_cases) = match mask {
+        Some(mask) => {
+            let mask = mask.as_array();
+            debug_assert_eq!(
+                array.len(),
+                mask.len(),
+                "The array and the mask should have the same length: {array_len}!={mask_len}",
+                array_len = array.len(),
+                mask_len = mask.len()
+            );
+            _get_contour_segments(&array, shape.0, shape.1, level, is_fully_connected, &mask)
+        }
+        None => {
+            let mask = Array::from_vec(vec![1u8; array.len()]);
+            let mask = mask.view().into_dyn();
+            _get_contour_segments(&array, shape.0, shape.1, level, is_fully_connected, &mask)
+        }
+    };
     let (_nb_rows, nb_cols) = shape;
-    let (segments, square_cases) =
-        _get_contour_segments(&array, shape.0, shape.1, level, is_fully_connected, &mask);
     let neighbors = build_neighbors(&square_cases, &segments, nb_cols, is_fully_connected);
     assemble_contours(&segments, &neighbors, tol)
 }
