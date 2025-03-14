@@ -1,3 +1,5 @@
+use numpy::ndarray::ArrayViewD;
+use numpy::PyReadonlyArrayDyn;
 use pyo3::prelude::*;
 
 #[inline]
@@ -56,12 +58,12 @@ fn right_y(_: usize, c: usize, _: f64, _: f64, _: f64) -> f64 {
 }
 
 fn _get_contour_segments(
-    array: &Vec<f64>,
+    array: &ArrayViewD<'_, f64>,
     nb_rows: usize,
     nb_cols: usize,
     level: f64,
     vertex_connect_high: bool,
-    mask: &Vec<u8>,
+    mask: &ArrayViewD<'_, u8>,
 ) -> (Vec<f64>, Vec<u8>) {
     let mut segments = Vec::with_capacity(nb_rows * nb_cols);
     let mut square_cases: Vec<u8> = Vec::with_capacity((nb_rows - 1) * (nb_cols - 1));
@@ -71,20 +73,15 @@ fn _get_contour_segments(
             let c1 = c0 + 1;
             let (ul, ll, ur, lr): (f64, f64, f64, f64);
             let is_masked: u8;
-            unsafe {
-                let ul_index = r0 * nb_cols + c0;
-                let ll_index = r1 * nb_cols + c0;
-                let ur_index = r0 * nb_cols + c1;
-                let lr_index = r1 * nb_cols + c1;
-                ul = *array.get_unchecked(ul_index);
-                ll = *array.get_unchecked(ll_index);
-                ur = *array.get_unchecked(ur_index);
-                lr = *array.get_unchecked(lr_index);
-                is_masked = *mask.get_unchecked(ul_index)
-                    * *mask.get_unchecked(ll_index)
-                    * *mask.get_unchecked(ur_index)
-                    * *mask.get_unchecked(lr_index);
-            }
+            let ul_index = r0 * nb_cols + c0;
+            let ll_index = r1 * nb_cols + c0;
+            let ur_index = r0 * nb_cols + c1;
+            let lr_index = r1 * nb_cols + c1;
+            ul = array[ul_index];
+            ll = array[ll_index];
+            ur = array[ur_index];
+            lr = array[lr_index];
+            is_masked = mask[ul_index] * mask[ll_index] * mask[ur_index] * mask[lr_index];
             let square_case = is_masked
                 * (1 * u8::from(ul > level) as u8
                     | 2 * (ur > level) as u8
@@ -702,13 +699,15 @@ fn find_previous_segment(
 
 #[pyfunction]
 #[pyo3(signature=(array, shape, level, mask, vertex_connect_high=false))]
-fn get_contour_segments(
-    array: Vec<f64>,
+fn get_contour_segments<'py>(
+    array: PyReadonlyArrayDyn<'py, f64>,
     shape: (usize, usize),
     level: f64,
-    mask: Vec<u8>,
+    mask: PyReadonlyArrayDyn<'py, u8>,
     vertex_connect_high: bool,
 ) -> Vec<f64> {
+    let array = array.as_array();
+    let mask = mask.as_array();
     assert_eq!(
         array.len(),
         shape.0 * shape.1,
@@ -729,14 +728,16 @@ fn get_contour_segments(
 
 #[pyfunction]
 #[pyo3(signature=(array, shape, level, mask, is_fully_connected=false, tol=1e-16))]
-fn marching_squares(
-    array: Vec<f64>,
+fn marching_squares<'py>(
+    array: PyReadonlyArrayDyn<'py, f64>,
     shape: (usize, usize),
     level: f64,
-    mask: Vec<u8>,
+    mask: PyReadonlyArrayDyn<'py, u8>,
     is_fully_connected: bool,
     tol: f64,
 ) -> Vec<Vec<f64>> {
+    let array = array.as_array();
+    let mask = mask.as_array();
     assert_eq!(
         array.len(),
         shape.0 * shape.1,
