@@ -28,14 +28,9 @@ def get_contour_segments(
         _mask = np.asarray(mask, dtype=np.uint8)
     else:
         _mask = None
-    return np.asarray(
-        _marchingsquares.get_contour_segments(
-            array,
-            level,
-            _mask,
-            vertex_connect_high,
-        )
-    ).reshape((-1, 2, 2))
+    return _marchingsquares.get_contour_segments(
+        array, level, _mask, vertex_connect_high
+    )
 
 
 def marching_squares(
@@ -59,13 +54,6 @@ def marching_squares(
         _mask = _mask
     else:
         _mask = None
-    return [
-        np.asarray(contour).reshape(-1, 2)
-        for contour in _marchingsquares.marching_squares(
-            array,
-            level,
-            _mask,
-            is_fully_connected,
-            tol,
-        )
-    ]
+    return _marchingsquares.marching_squares(
+        array, level, _mask, is_fully_connected, tol
+    )

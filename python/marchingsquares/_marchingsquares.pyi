@@ -1,4 +1,4 @@
-from typing import Sequence, Tuple
+from typing import List, Sequence, Tuple
 import typing
 
 if typing.TYPE_CHECKING:
@@ -21,5 +21,5 @@ def marching_squares(
     mask: ArrayLike,
     is_fully_connected: bool = False,
     tol=1e-10,
-) -> Sequence[ArrayLike]:
+) -> List[ArrayLike]:
     pass

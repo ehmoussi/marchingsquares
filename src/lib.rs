@@ -1,5 +1,5 @@
-use numpy::ndarray::{Array, ArrayViewD};
-use numpy::{IntoPyArray, PyArrayDyn, PyReadonlyArrayDyn};
+use numpy::ndarray::{Array, ArrayD, ArrayViewD};
+use numpy::{IntoPyArray, IxDyn, PyArrayDyn, PyReadonlyArrayDyn};
 use pyo3::prelude::*;
 
 #[inline]
@@ -315,8 +315,7 @@ fn build_neighbors(
         };
         segment_positions[i + 1] = segment_positions[i] + nb_segments;
     }
-    let nb_segments = segment_positions[segment_positions.len() - 1];
-    let mut neighbors = Vec::with_capacity(nb_segments / 4);
+    let mut neighbors = Vec::new();
     for (square_index, square_case) in square_cases.iter().enumerate() {
         let r0 = square_index / (nb_cols - 1);
         let c0 = square_index % (nb_cols - 1);
@@ -586,7 +585,11 @@ fn build_neighbors(
     neighbors
 }
 
-fn assemble_contours(segments: &Vec<f64>, neighbors: &Vec<Vec<usize>>, tol: f64) -> Vec<Vec<f64>> {
+fn assemble_contours(
+    segments: &Vec<f64>,
+    neighbors: &Vec<Vec<usize>>,
+    tol: f64,
+) -> Vec<ArrayD<f64>> {
     let mut contours = Vec::with_capacity(segments.len() / 4);
     let mut visited = vec![false; segments.len()];
     for first_index in 0..(segments.len() / 4) {
@@ -640,7 +643,8 @@ fn assemble_contours(segments: &Vec<f64>, neighbors: &Vec<Vec<usize>>, tol: f64)
                 (None, None) => (),
             }
         }
-        contours.push(contour);
+        let shape = IxDyn(&[contour.len() / 2, 2]);
+        contours.push(ArrayD::from_shape_vec(shape, contour).unwrap());
     }
     return contours;
 }
@@ -734,18 +738,22 @@ fn get_contour_segments<'py>(
             _get_contour_segments(&array, level, vertex_connect_high, &mask).0
         }
     };
-    Array::from_vec(segments).into_dyn().into_pyarray(py)
+    let shape = IxDyn(&[segments.len() / 4, 2, 2]);
+    ArrayD::from_shape_vec(shape, segments)
+        .unwrap()
+        .into_pyarray(py)
 }
 
 #[pyfunction]
 #[pyo3(signature=(array, level, mask, is_fully_connected=false, tol=1e-16))]
 fn marching_squares<'py>(
+    py: Python<'py>,
     array: PyReadonlyArrayDyn<'py, f64>,
     level: f64,
     mask: Option<PyReadonlyArrayDyn<'py, u8>>,
     is_fully_connected: bool,
     tol: f64,
-) -> Vec<Vec<f64>> {
+) -> Vec<Bound<'py, PyArrayDyn<f64>>> {
     let array = array.as_array();
     assert_eq!(
         array.shape().len(),
@@ -773,7 +781,8 @@ fn marching_squares<'py>(
     let shape = array.shape();
     let (_nb_rows, nb_cols) = (shape[0], shape[1]);
     let neighbors = build_neighbors(&square_cases, &segments, nb_cols, is_fully_connected);
-    assemble_contours(&segments, &neighbors, tol)
+    let contours = assemble_contours(&segments, &neighbors, tol);
+    contours.into_iter().map(|c| c.into_pyarray(py)).collect()
 }
 
 // Marching squares algorithm
