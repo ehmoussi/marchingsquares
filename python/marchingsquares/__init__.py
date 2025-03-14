@@ -19,20 +19,18 @@ def get_contour_segments(
     if len(array.shape) != 2:
         raise ValueError("The array should have a 2d dimension")
     shape = (array.shape[0], array.shape[1])
-    array = array.flatten()
     if mask is not None:
         _mask = np.asarray(mask, dtype=np.uint8)
         if _mask.shape != shape:
             raise ValueError(
                 f"The array and the mask must have the same length, {mask.shape} != {shape}"
             )
-        _mask = np.asarray(mask, dtype=np.uint8).flatten()
+        _mask = np.asarray(mask, dtype=np.uint8)
     else:
         _mask = None
     return np.asarray(
         _marchingsquares.get_contour_segments(
             array,
-            shape,
             level,
             _mask,
             vertex_connect_high,
@@ -51,21 +49,20 @@ def marching_squares(
     if len(array.shape) != 2:
         raise ValueError("The array should have a 2d dimension")
     shape = (array.shape[0], array.shape[1])
-    array = array.flatten()
+    array = array
     if mask is not None:
         _mask = np.asarray(mask, dtype=np.uint8)
         if _mask.shape != shape:
             raise ValueError(
                 f"The array and the mask must have the same length, {mask.shape} != {shape}"
             )
-        _mask = _mask.flatten()
+        _mask = _mask
     else:
         _mask = None
     return [
         np.asarray(contour).reshape(-1, 2)
         for contour in _marchingsquares.marching_squares(
             array,
-            shape,
             level,
             _mask,
             is_fully_connected,
