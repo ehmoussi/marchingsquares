@@ -270,26 +270,35 @@ fn add_top_neighbor(
     r0: &usize,
     c0: &usize,
     nb_cols_m1: &usize,
-    neighbors: &mut Vec<usize>,
+    head_neighbors: &mut Vec<Option<usize>>,
+    tail_neighbors: &mut Vec<Option<usize>>,
     square_cases: &Vec<u8>,
     positions: &Vec<usize>,
+    is_head: bool,
 ) {
-    if *r0 > 0 {
-        let top_index = (r0 - 1) * nb_cols_m1 + c0;
-        if top_index < (positions.len() - 1) {
-            unsafe {
-                match square_cases.get_unchecked(top_index) {
-                    4 | 5 | 7 | 8 | 10 | 11 => {
-                        neighbors.push(*positions.get_unchecked(top_index));
-                    }
-                    6 | 9 => {
-                        let seg_index = *positions.get_unchecked(top_index);
-                        neighbors.push(seg_index);
-                        neighbors.push(seg_index + 1);
-                    }
-                    _ => (),
-                }
-            }
+    let top_index = (r0 - 1) * nb_cols_m1 + c0;
+    match (
+        square_cases.get(top_index),
+        positions.get(top_index),
+        is_head,
+    ) {
+        (Some(8 | 10 | 11), Some(index), true) => {
+            head_neighbors.push(Some(*index));
+        }
+        (Some(4 | 5 | 7), Some(index), false) => {
+            tail_neighbors.push(Some(*index));
+        }
+        (Some(6), Some(index), false) => {
+            tail_neighbors.push(Some(*index + 1));
+        }
+        (Some(9), Some(index), true) => {
+            head_neighbors.push(Some(*index + 1));
+        }
+        (_, _, true) => {
+            head_neighbors.push(None);
+        }
+        (_, _, false) => {
+            tail_neighbors.push(None);
         }
     }
 }
@@ -299,26 +308,42 @@ fn add_left_neighbor(
     r0: &usize,
     c0: &usize,
     nb_cols_m1: &usize,
-    neighbors: &mut Vec<usize>,
+    head_neighbors: &mut Vec<Option<usize>>,
+    tail_neighbors: &mut Vec<Option<usize>>,
     square_cases: &Vec<u8>,
     positions: &Vec<usize>,
+    is_head: bool,
 ) {
-    if *c0 > 0 {
-        let left_index = r0 * nb_cols_m1 + (c0 - 1);
-        if left_index < (positions.len() - 1) {
-            unsafe {
-                match square_cases.get_unchecked(left_index) {
-                    2 | 3 | 7 | 8 | 12 | 13 => {
-                        neighbors.push(*positions.get_unchecked(left_index));
-                    }
-                    6 | 9 => {
-                        let seg_index = *positions.get_unchecked(left_index);
-                        neighbors.push(seg_index);
-                        neighbors.push(seg_index + 1);
-                    }
-                    _ => (),
-                }
-            }
+    let left_index = r0 * nb_cols_m1 + (c0 - 1);
+    match (
+        square_cases.get(left_index),
+        positions.get(left_index),
+        false,
+        is_head,
+    ) {
+        (Some(2 | 3 | 7), Some(index), _, true) => {
+            head_neighbors.push(Some(*index));
+        }
+        (Some(8 | 12 | 13), Some(index), _, false) => {
+            tail_neighbors.push(Some(*index));
+        }
+        (Some(6), Some(index), true, true) => {
+            head_neighbors.push(Some(*index + 1));
+        }
+        (Some(6), Some(index), false, true) => {
+            head_neighbors.push(Some(*index));
+        }
+        (Some(9), Some(index), true, false) => {
+            tail_neighbors.push(Some(*index));
+        }
+        (Some(9), Some(index), false, false) => {
+            tail_neighbors.push(Some(*index + 1));
+        }
+        (_, _, _, true) => {
+            head_neighbors.push(None);
+        }
+        (_, _, _, false) => {
+            tail_neighbors.push(None);
         }
     }
 }
@@ -328,24 +353,43 @@ fn add_right_neighbor(
     r0: &usize,
     c0: &usize,
     nb_cols_m1: &usize,
-    neighbors: &mut Vec<usize>,
+    head_neighbors: &mut Vec<Option<usize>>,
+    tail_neighbors: &mut Vec<Option<usize>>,
     square_cases: &Vec<u8>,
     positions: &Vec<usize>,
+    // is_fully_connected: bool,
+    is_head: bool,
 ) {
     let right_index = r0 * nb_cols_m1 + (c0 + 1);
-    if right_index < (positions.len() - 1) {
-        unsafe {
-            match square_cases.get_unchecked(right_index) {
-                1 | 3 | 4 | 11 | 12 | 14 => {
-                    neighbors.push(*positions.get_unchecked(right_index));
-                }
-                6 | 9 => {
-                    let seg_index = *positions.get_unchecked(right_index);
-                    neighbors.push(seg_index);
-                    neighbors.push(seg_index + 1);
-                }
-                _ => (),
-            }
+    match (
+        square_cases.get(right_index),
+        positions.get(right_index),
+        false,
+        is_head,
+    ) {
+        (Some(4 | 12 | 14), Some(index), _, true) => {
+            head_neighbors.push(Some(*index));
+        }
+        (Some(1 | 3 | 11), Some(index), _, false) => {
+            tail_neighbors.push(Some(*index));
+        }
+        (Some(6), Some(index), true, true) => {
+            head_neighbors.push(Some(*index));
+        }
+        (Some(6), Some(index), false, true) => {
+            head_neighbors.push(Some(*index + 1));
+        }
+        (Some(9), Some(index), true, false) => {
+            tail_neighbors.push(Some(*index + 1));
+        }
+        (Some(9), Some(index), false, false) => {
+            tail_neighbors.push(Some(*index));
+        }
+        (_, _, _, true) => {
+            head_neighbors.push(None);
+        }
+        (_, _, _, false) => {
+            tail_neighbors.push(None);
         }
     }
 }
@@ -355,24 +399,35 @@ fn add_bottom_neighbor(
     r0: &usize,
     c0: &usize,
     nb_cols_m1: &usize,
-    neighbors: &mut Vec<usize>,
+    head_neighbors: &mut Vec<Option<usize>>,
+    tail_neighbors: &mut Vec<Option<usize>>,
     square_cases: &Vec<u8>,
     positions: &Vec<usize>,
+    is_head: bool,
 ) {
     let bottom_index = (r0 + 1) * nb_cols_m1 + c0;
-    if bottom_index < (positions.len() - 1) {
-        unsafe {
-            match square_cases.get_unchecked(bottom_index) {
-                1 | 2 | 5 | 10 | 13 | 14 => {
-                    neighbors.push(*positions.get_unchecked(bottom_index));
-                }
-                6 | 9 => {
-                    let seg_index = *positions.get_unchecked(bottom_index);
-                    neighbors.push(seg_index);
-                    neighbors.push(seg_index + 1);
-                }
-                _ => (),
-            }
+    match (
+        square_cases.get(bottom_index),
+        positions.get(bottom_index),
+        is_head,
+    ) {
+        (Some(1 | 5 | 13), Some(index), true) => {
+            head_neighbors.push(Some(*index));
+        }
+        (Some(2 | 10 | 14), Some(index), false) => {
+            tail_neighbors.push(Some(*index));
+        }
+        (Some(6), Some(index), false) => {
+            tail_neighbors.push(Some(*index));
+        }
+        (Some(9), Some(index), true) => {
+            head_neighbors.push(Some(*index));
+        }
+        (_, _, true) => {
+            head_neighbors.push(None);
+        }
+        (_, _, false) => {
+            tail_neighbors.push(None);
         }
     }
 }
@@ -380,9 +435,10 @@ fn add_bottom_neighbor(
 fn build_neighbors(
     square_cases: &Vec<u8>,
     _segments: &Vec<f64>,
+    _nb_rows: usize,
     nb_cols: usize,
     vertex_connect_high: bool,
-) -> Vec<Vec<usize>> {
+) -> (Vec<Option<usize>>, Vec<Option<usize>>) {
     let mut segment_positions = vec![0; square_cases.len() + 1];
     for (i, square_case) in square_cases.iter().enumerate() {
         let nb_segments = match square_case {
@@ -393,12 +449,13 @@ fn build_neighbors(
         };
         segment_positions[i + 1] = segment_positions[i] + nb_segments;
     }
-    let mut neighbors = Vec::new();
+    let mut head_neighbors = Vec::with_capacity(_segments.len() / 4);
+    let mut tail_neighbors = Vec::with_capacity(_segments.len() / 4);
     let nb_cols_m1 = nb_cols - 1;
     for (square_index, square_case) in square_cases.iter().enumerate() {
         let r0 = square_index / nb_cols_m1;
         let c0 = square_index % nb_cols_m1;
-        let mut square_neighbors = Vec::new();
+        // let diff = head_neighbors.len();
         match square_case {
             0 | 15 => (),
             1 => {
@@ -406,17 +463,21 @@ fn build_neighbors(
                     &r0,
                     &c0,
                     &nb_cols_m1,
-                    &mut square_neighbors,
+                    &mut head_neighbors,
+                    &mut tail_neighbors,
                     &square_cases,
                     &segment_positions,
+                    false,
                 );
                 add_left_neighbor(
                     &r0,
                     &c0,
                     &nb_cols_m1,
-                    &mut square_neighbors,
+                    &mut head_neighbors,
+                    &mut tail_neighbors,
                     &square_cases,
                     &segment_positions,
+                    true,
                 );
             }
             2 => {
@@ -424,17 +485,21 @@ fn build_neighbors(
                     &r0,
                     &c0,
                     &nb_cols_m1,
-                    &mut square_neighbors,
+                    &mut head_neighbors,
+                    &mut tail_neighbors,
                     &square_cases,
                     &segment_positions,
+                    false,
                 );
                 add_top_neighbor(
                     &r0,
                     &c0,
                     &nb_cols_m1,
-                    &mut square_neighbors,
+                    &mut head_neighbors,
+                    &mut tail_neighbors,
                     &square_cases,
                     &segment_positions,
+                    true,
                 );
             }
             3 => {
@@ -442,17 +507,21 @@ fn build_neighbors(
                     &r0,
                     &c0,
                     &nb_cols_m1,
-                    &mut square_neighbors,
+                    &mut head_neighbors,
+                    &mut tail_neighbors,
                     &square_cases,
                     &segment_positions,
+                    false,
                 );
                 add_left_neighbor(
                     &r0,
                     &c0,
                     &nb_cols_m1,
-                    &mut square_neighbors,
+                    &mut head_neighbors,
+                    &mut tail_neighbors,
                     &square_cases,
                     &segment_positions,
+                    true,
                 );
             }
             4 => {
@@ -460,17 +529,21 @@ fn build_neighbors(
                     &r0,
                     &c0,
                     &nb_cols_m1,
-                    &mut square_neighbors,
+                    &mut head_neighbors,
+                    &mut tail_neighbors,
                     &square_cases,
                     &segment_positions,
+                    false,
                 );
                 add_bottom_neighbor(
                     &r0,
                     &c0,
                     &nb_cols_m1,
-                    &mut square_neighbors,
+                    &mut head_neighbors,
+                    &mut tail_neighbors,
                     &square_cases,
                     &segment_positions,
+                    true,
                 );
             }
             5 => {
@@ -478,17 +551,21 @@ fn build_neighbors(
                     &r0,
                     &c0,
                     &nb_cols_m1,
-                    &mut square_neighbors,
+                    &mut head_neighbors,
+                    &mut tail_neighbors,
                     &square_cases,
                     &segment_positions,
+                    false,
                 );
                 add_bottom_neighbor(
                     &r0,
                     &c0,
                     &nb_cols_m1,
-                    &mut square_neighbors,
+                    &mut head_neighbors,
+                    &mut tail_neighbors,
                     &square_cases,
                     &segment_positions,
+                    true,
                 );
             }
             6 => match vertex_connect_high {
@@ -497,34 +574,42 @@ fn build_neighbors(
                         &r0,
                         &c0,
                         &nb_cols_m1,
-                        &mut square_neighbors,
+                        &mut head_neighbors,
+                        &mut tail_neighbors,
                         &square_cases,
                         &segment_positions,
+                        false,
                     );
                     add_top_neighbor(
                         &r0,
                         &c0,
                         &nb_cols_m1,
-                        &mut square_neighbors,
+                        &mut head_neighbors,
+                        &mut tail_neighbors,
                         &square_cases,
                         &segment_positions,
+                        true,
                     );
                     // seg 2
                     add_right_neighbor(
                         &r0,
                         &c0,
                         &nb_cols_m1,
-                        &mut square_neighbors,
+                        &mut head_neighbors,
+                        &mut tail_neighbors,
                         &square_cases,
                         &segment_positions,
+                        false,
                     );
                     add_bottom_neighbor(
                         &r0,
                         &c0,
                         &nb_cols_m1,
-                        &mut square_neighbors,
+                        &mut head_neighbors,
+                        &mut tail_neighbors,
                         &square_cases,
                         &segment_positions,
+                        true,
                     );
                 }
                 false => {
@@ -532,34 +617,42 @@ fn build_neighbors(
                         &r0,
                         &c0,
                         &nb_cols_m1,
-                        &mut square_neighbors,
+                        &mut head_neighbors,
+                        &mut tail_neighbors,
                         &square_cases,
                         &segment_positions,
+                        false,
                     );
                     add_top_neighbor(
                         &r0,
                         &c0,
                         &nb_cols_m1,
-                        &mut square_neighbors,
+                        &mut head_neighbors,
+                        &mut tail_neighbors,
                         &square_cases,
                         &segment_positions,
+                        true,
                     );
                     // seg 2
                     add_left_neighbor(
                         &r0,
                         &c0,
                         &nb_cols_m1,
-                        &mut square_neighbors,
+                        &mut head_neighbors,
+                        &mut tail_neighbors,
                         &square_cases,
                         &segment_positions,
+                        false,
                     );
                     add_bottom_neighbor(
                         &r0,
                         &c0,
                         &nb_cols_m1,
-                        &mut square_neighbors,
+                        &mut head_neighbors,
+                        &mut tail_neighbors,
                         &square_cases,
                         &segment_positions,
+                        true,
                     );
                 }
             },
@@ -568,17 +661,21 @@ fn build_neighbors(
                     &r0,
                     &c0,
                     &nb_cols_m1,
-                    &mut square_neighbors,
+                    &mut head_neighbors,
+                    &mut tail_neighbors,
                     &square_cases,
                     &segment_positions,
+                    false,
                 );
                 add_bottom_neighbor(
                     &r0,
                     &c0,
                     &nb_cols_m1,
-                    &mut square_neighbors,
+                    &mut head_neighbors,
+                    &mut tail_neighbors,
                     &square_cases,
                     &segment_positions,
+                    true,
                 );
             }
             8 => {
@@ -586,17 +683,21 @@ fn build_neighbors(
                     &r0,
                     &c0,
                     &nb_cols_m1,
-                    &mut square_neighbors,
+                    &mut head_neighbors,
+                    &mut tail_neighbors,
                     &square_cases,
                     &segment_positions,
+                    false,
                 );
                 add_right_neighbor(
                     &r0,
                     &c0,
                     &nb_cols_m1,
-                    &mut square_neighbors,
+                    &mut head_neighbors,
+                    &mut tail_neighbors,
                     &square_cases,
                     &segment_positions,
+                    true,
                 );
             }
             9 => match vertex_connect_high {
@@ -605,34 +706,42 @@ fn build_neighbors(
                         &r0,
                         &c0,
                         &nb_cols_m1,
-                        &mut square_neighbors,
+                        &mut head_neighbors,
+                        &mut tail_neighbors,
                         &square_cases,
                         &segment_positions,
+                        false,
                     );
                     add_right_neighbor(
                         &r0,
                         &c0,
                         &nb_cols_m1,
-                        &mut square_neighbors,
+                        &mut head_neighbors,
+                        &mut tail_neighbors,
                         &square_cases,
                         &segment_positions,
+                        true,
                     );
                     // seg 2
                     add_bottom_neighbor(
                         &r0,
                         &c0,
                         &nb_cols_m1,
-                        &mut square_neighbors,
+                        &mut head_neighbors,
+                        &mut tail_neighbors,
                         &square_cases,
                         &segment_positions,
+                        false,
                     );
                     add_left_neighbor(
                         &r0,
                         &c0,
                         &nb_cols_m1,
-                        &mut square_neighbors,
+                        &mut head_neighbors,
+                        &mut tail_neighbors,
                         &square_cases,
                         &segment_positions,
+                        true,
                     );
                 }
                 false => {
@@ -640,34 +749,42 @@ fn build_neighbors(
                         &r0,
                         &c0,
                         &nb_cols_m1,
-                        &mut square_neighbors,
+                        &mut head_neighbors,
+                        &mut tail_neighbors,
                         &square_cases,
                         &segment_positions,
+                        false,
                     );
                     add_left_neighbor(
                         &r0,
                         &c0,
                         &nb_cols_m1,
-                        &mut square_neighbors,
+                        &mut head_neighbors,
+                        &mut tail_neighbors,
                         &square_cases,
                         &segment_positions,
+                        true,
                     );
                     // seg 2
                     add_bottom_neighbor(
                         &r0,
                         &c0,
                         &nb_cols_m1,
-                        &mut square_neighbors,
+                        &mut head_neighbors,
+                        &mut tail_neighbors,
                         &square_cases,
                         &segment_positions,
+                        false,
                     );
                     add_right_neighbor(
                         &r0,
                         &c0,
                         &nb_cols_m1,
-                        &mut square_neighbors,
+                        &mut head_neighbors,
+                        &mut tail_neighbors,
                         &square_cases,
                         &segment_positions,
+                        true,
                     );
                 }
             },
@@ -676,17 +793,21 @@ fn build_neighbors(
                     &r0,
                     &c0,
                     &nb_cols_m1,
-                    &mut square_neighbors,
+                    &mut head_neighbors,
+                    &mut tail_neighbors,
                     &square_cases,
                     &segment_positions,
+                    false,
                 );
                 add_top_neighbor(
                     &r0,
                     &c0,
                     &nb_cols_m1,
-                    &mut square_neighbors,
+                    &mut head_neighbors,
+                    &mut tail_neighbors,
                     &square_cases,
                     &segment_positions,
+                    true,
                 );
             }
             11 => {
@@ -694,17 +815,21 @@ fn build_neighbors(
                     &r0,
                     &c0,
                     &nb_cols_m1,
-                    &mut square_neighbors,
+                    &mut head_neighbors,
+                    &mut tail_neighbors,
                     &square_cases,
                     &segment_positions,
+                    false,
                 );
                 add_left_neighbor(
                     &r0,
                     &c0,
                     &nb_cols_m1,
-                    &mut square_neighbors,
+                    &mut head_neighbors,
+                    &mut tail_neighbors,
                     &square_cases,
                     &segment_positions,
+                    true,
                 );
             }
             12 => {
@@ -712,17 +837,21 @@ fn build_neighbors(
                     &r0,
                     &c0,
                     &nb_cols_m1,
-                    &mut square_neighbors,
+                    &mut head_neighbors,
+                    &mut tail_neighbors,
                     &square_cases,
                     &segment_positions,
+                    false,
                 );
                 add_right_neighbor(
                     &r0,
                     &c0,
                     &nb_cols_m1,
-                    &mut square_neighbors,
+                    &mut head_neighbors,
+                    &mut tail_neighbors,
                     &square_cases,
                     &segment_positions,
+                    true,
                 );
             }
             13 => {
@@ -730,17 +859,21 @@ fn build_neighbors(
                     &r0,
                     &c0,
                     &nb_cols_m1,
-                    &mut square_neighbors,
+                    &mut head_neighbors,
+                    &mut tail_neighbors,
                     &square_cases,
                     &segment_positions,
+                    false,
                 );
                 add_right_neighbor(
                     &r0,
                     &c0,
                     &nb_cols_m1,
-                    &mut square_neighbors,
+                    &mut head_neighbors,
+                    &mut tail_neighbors,
                     &square_cases,
                     &segment_positions,
+                    true,
                 );
             }
             14 => {
@@ -748,17 +881,21 @@ fn build_neighbors(
                     &r0,
                     &c0,
                     &nb_cols_m1,
-                    &mut square_neighbors,
+                    &mut head_neighbors,
+                    &mut tail_neighbors,
                     &square_cases,
                     &segment_positions,
+                    false,
                 );
                 add_top_neighbor(
                     &r0,
                     &c0,
                     &nb_cols_m1,
-                    &mut square_neighbors,
+                    &mut head_neighbors,
+                    &mut tail_neighbors,
                     &square_cases,
                     &segment_positions,
+                    true,
                 );
             }
             _ => unreachable!("Unexpected square case: {}", square_case),
@@ -769,28 +906,25 @@ fn build_neighbors(
         //     &segments,
         //     &square_neighbors,
         // );
-        match square_case {
-            0 | 15 => (),
-            1..6 => neighbors.push(square_neighbors),
-            7..9 => neighbors.push(square_neighbors),
-            10..15 => neighbors.push(square_neighbors),
-            6 | 9 => {
-                neighbors.push(square_neighbors.clone());
-                neighbors.push(square_neighbors);
-            }
-            _ => unreachable!("Unexpected square case: {}", square_case),
-        }
+        // match square_case {
+        //     0 | 15 => assert_eq!(head_neighbors.len(), diff, "{square_case}"),
+        //     6 | 9 => assert_eq!(head_neighbors.len(), diff + 2, "{square_case}"),
+        //     _ => assert_eq!(head_neighbors.len(), diff + 1, "{square_case}"),
+        // }
     }
-    neighbors
+    assert_eq!(tail_neighbors.len(), _segments.len() / 4);
+    assert_eq!(head_neighbors.len(), _segments.len() / 4);
+    (head_neighbors, tail_neighbors)
 }
 
 fn assemble_contours(
     segments: &Vec<f64>,
-    neighbors: &Vec<Vec<usize>>,
+    head_neighbors: &Vec<Option<usize>>,
+    tail_neighbors: &Vec<Option<usize>>,
     tol: f64,
 ) -> Vec<ArrayD<f64>> {
     let mut contours = Vec::with_capacity(segments.len() / 4);
-    let mut visited = vec![false; segments.len()];
+    let mut visited = vec![false; segments.len() / 4];
     for first_index in 0..(segments.len() / 4) {
         if visited[first_index] {
             continue;
@@ -809,8 +943,8 @@ fn assemble_contours(
         while contour.len() > nb_points {
             nb_points = contour.len();
             match (
-                find_next_segment(&segments, &visited, &neighbors, head_index, tol),
-                find_previous_segment(&segments, &visited, &neighbors, tail_index, tol),
+                find_next_segment(&segments, &visited, &head_neighbors, head_index, tol),
+                find_previous_segment(&segments, &visited, &tail_neighbors, tail_index, tol),
             ) {
                 (Some(next_index), None) => {
                     contour.push(segments[4 * next_index + 2]);
@@ -852,24 +986,24 @@ fn assemble_contours(
 fn find_next_segment(
     segments: &Vec<f64>,
     visited: &Vec<bool>,
-    neighbors: &Vec<Vec<usize>>,
+    neighbors: &Vec<Option<usize>>,
     index: usize,
     tol: f64,
 ) -> Option<usize> {
-    if let Some(neighbors_index) = neighbors.get(index) {
-        for &next_index in neighbors_index {
-            if !visited[next_index] {
-                if close(
+    unsafe {
+        if let Some(next_index) = neighbors.get_unchecked(index) {
+            if !visited.get_unchecked(*next_index)
+                && close(
                     // first point of the next_index-th segment
-                    segments[4 * next_index + 0],
-                    segments[4 * next_index + 1],
+                    *segments.get_unchecked(4 * next_index + 0),
+                    *segments.get_unchecked(4 * next_index + 1),
                     // second point of the index-th segment
-                    segments[4 * index + 2],
-                    segments[4 * index + 3],
+                    *segments.get_unchecked(4 * index + 2),
+                    *segments.get_unchecked(4 * index + 3),
                     tol,
-                ) {
-                    return Some(next_index);
-                }
+                )
+            {
+                return Some(*next_index);
             }
         }
     }
@@ -880,24 +1014,24 @@ fn find_next_segment(
 fn find_previous_segment(
     segments: &Vec<f64>,
     visited: &Vec<bool>,
-    neighbors: &Vec<Vec<usize>>,
+    neighbors: &Vec<Option<usize>>,
     index: usize,
     tol: f64,
 ) -> Option<usize> {
-    if let Some(neighbors_index) = neighbors.get(index) {
-        for &prev_index in neighbors_index {
-            if !visited[prev_index] {
-                if close(
+    unsafe {
+        if let Some(prev_index) = neighbors.get_unchecked(index) {
+            if !visited.get_unchecked(*prev_index)
+                && close(
                     // first point of the index-th segment
-                    segments[4 * index + 0],
-                    segments[4 * index + 1],
+                    *segments.get_unchecked(4 * index + 0),
+                    *segments.get_unchecked(4 * index + 1),
                     // second point of the prev_index-th segment
-                    segments[4 * prev_index + 2],
-                    segments[4 * prev_index + 3],
+                    *segments.get_unchecked(4 * prev_index + 2),
+                    *segments.get_unchecked(4 * prev_index + 3),
                     tol,
-                ) {
-                    return Some(prev_index);
-                }
+                )
+            {
+                return Some(*prev_index);
             }
         }
     }
@@ -978,9 +1112,15 @@ fn marching_squares<'py>(
         }
     };
     let shape = array.shape();
-    let (_nb_rows, nb_cols) = (shape[0], shape[1]);
-    let neighbors = build_neighbors(&square_cases, &segments, nb_cols, is_fully_connected);
-    let contours = assemble_contours(&segments, &neighbors, tol);
+    let (nb_rows, nb_cols) = (shape[0], shape[1]);
+    let (head_neighbors, tail_neighbors) = build_neighbors(
+        &square_cases,
+        &segments,
+        nb_rows,
+        nb_cols,
+        is_fully_connected,
+    );
+    let contours = assemble_contours(&segments, &head_neighbors, &tail_neighbors, tol);
     contours.into_iter().map(|c| c.into_pyarray(py)).collect()
 }
 
