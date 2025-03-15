@@ -266,34 +266,108 @@ fn _print_segment_by_position(
 }
 
 #[inline(always)]
-fn top_index(r0: &usize, c0: &usize, nb_cols: &usize) -> Option<usize> {
-    r0.checked_add_signed(-1)
-        .and_then(|r| Some(r * (nb_cols - 1)))
-        .and_then(|idx| Some(idx + c0))
+fn add_top_neighbor(
+    r0: &usize,
+    c0: &usize,
+    nb_cols_m1: &usize,
+    neighbors: &mut Vec<usize>,
+    square_cases: &Vec<u8>,
+    positions: &Vec<usize>,
+) {
+    if *r0 > 0 {
+        let top_index = (r0 - 1) * nb_cols_m1 + c0;
+        if top_index < (positions.len() - 1) {
+            unsafe {
+                match square_cases.get_unchecked(top_index) {
+                    4 | 5 | 6 | 7 | 8 | 9 | 10 | 11 => {
+                        let start = *positions.get_unchecked(top_index);
+                        let end = *positions.get_unchecked(top_index + 1);
+                        for i in start..end {
+                            neighbors.push(i);
+                        }
+                    }
+                    _ => (),
+                }
+            }
+        }
+    }
 }
 
 #[inline(always)]
-fn left_index(r0: &usize, c0: &usize, nb_cols: &usize) -> Option<usize> {
-    c0.checked_add_signed(-1)
-        .and_then(|c| Some(r0 * (nb_cols - 1) + c))
+fn add_left_neighbor(
+    r0: &usize,
+    c0: &usize,
+    nb_cols_m1: &usize,
+    neighbors: &mut Vec<usize>,
+    square_cases: &Vec<u8>,
+    positions: &Vec<usize>,
+) {
+    if *c0 > 0 {
+        let left_index = r0 * nb_cols_m1 + (c0 - 1);
+        if left_index < (positions.len() - 1) {
+            unsafe {
+                match square_cases.get_unchecked(left_index) {
+                    2 | 3 | 6 | 7 | 8 | 9 | 12 | 13 => {
+                        let start = *positions.get_unchecked(left_index);
+                        let end = *positions.get_unchecked(left_index + 1);
+                        for i in start..end {
+                            neighbors.push(i);
+                        }
+                    }
+                    _ => (),
+                }
+            }
+        }
+    }
 }
 
 #[inline(always)]
-fn right_index(r0: &usize, c0: &usize, nb_cols: &usize) -> Option<usize> {
-    Some(r0 * (nb_cols - 1) + (c0 + 1))
+fn add_right_neighbor(
+    r0: &usize,
+    c0: &usize,
+    nb_cols_m1: &usize,
+    neighbors: &mut Vec<usize>,
+    square_cases: &Vec<u8>,
+    positions: &Vec<usize>,
+) {
+    let right_index = r0 * nb_cols_m1 + (c0 + 1);
+    if right_index < (positions.len() - 1) {
+        unsafe {
+            match square_cases.get_unchecked(right_index) {
+                1 | 3 | 4 | 6 | 9 | 11 | 12 | 14 => {
+                    let start = *positions.get_unchecked(right_index);
+                    let end = *positions.get_unchecked(right_index + 1);
+                    for i in start..end {
+                        neighbors.push(i);
+                    }
+                }
+                _ => (),
+            }
+        }
+    }
 }
 
 #[inline(always)]
-fn bottom_index(r0: &usize, c0: &usize, nb_cols: &usize) -> Option<usize> {
-    Some((r0 + 1) * (nb_cols - 1) + c0)
-}
-
-#[inline(always)]
-fn add_neighbor(index: Option<usize>, neighbors: &mut Vec<usize>, positions: &Vec<usize>) {
-    if let Some(index) = index {
-        if let (Some(&start), Some(&end)) = (positions.get(index), positions.get(index + 1)) {
-            for i in start..end {
-                neighbors.push(i);
+fn add_bottom_neighbor(
+    r0: &usize,
+    c0: &usize,
+    nb_cols_m1: &usize,
+    neighbors: &mut Vec<usize>,
+    square_cases: &Vec<u8>,
+    positions: &Vec<usize>,
+) {
+    let bottom_index = (r0 + 1) * nb_cols_m1 + c0;
+    if bottom_index < (positions.len() - 1) {
+        unsafe {
+            match square_cases.get_unchecked(bottom_index) {
+                1 | 2 | 5 | 6 | 9 | 10 | 13 | 14 => {
+                    let start = *positions.get_unchecked(bottom_index);
+                    let end = *positions.get_unchecked(bottom_index + 1);
+                    for i in start..end {
+                        neighbors.push(i);
+                    }
+                }
+                _ => (),
             }
         }
     }
@@ -316,249 +390,370 @@ fn build_neighbors(
         segment_positions[i + 1] = segment_positions[i] + nb_segments;
     }
     let mut neighbors = Vec::new();
+    let nb_cols_m1 = nb_cols - 1;
     for (square_index, square_case) in square_cases.iter().enumerate() {
-        let r0 = square_index / (nb_cols - 1);
-        let c0 = square_index % (nb_cols - 1);
+        let r0 = square_index / nb_cols_m1;
+        let c0 = square_index % nb_cols_m1;
         let mut square_neighbors = Vec::new();
         match square_case {
             0 | 15 => (),
             1 => {
-                add_neighbor(
-                    top_index(&r0, &c0, &nb_cols),
+                add_top_neighbor(
+                    &r0,
+                    &c0,
+                    &nb_cols_m1,
                     &mut square_neighbors,
+                    &square_cases,
                     &segment_positions,
                 );
-                add_neighbor(
-                    left_index(&r0, &c0, &nb_cols),
+                add_left_neighbor(
+                    &r0,
+                    &c0,
+                    &nb_cols_m1,
                     &mut square_neighbors,
+                    &square_cases,
                     &segment_positions,
                 );
             }
             2 => {
-                add_neighbor(
-                    right_index(&r0, &c0, &nb_cols),
+                add_right_neighbor(
+                    &r0,
+                    &c0,
+                    &nb_cols_m1,
                     &mut square_neighbors,
+                    &square_cases,
                     &segment_positions,
                 );
-                add_neighbor(
-                    top_index(&r0, &c0, &nb_cols),
+                add_top_neighbor(
+                    &r0,
+                    &c0,
+                    &nb_cols_m1,
                     &mut square_neighbors,
+                    &square_cases,
                     &segment_positions,
                 );
             }
             3 => {
-                add_neighbor(
-                    right_index(&r0, &c0, &nb_cols),
+                add_right_neighbor(
+                    &r0,
+                    &c0,
+                    &nb_cols_m1,
                     &mut square_neighbors,
+                    &square_cases,
                     &segment_positions,
                 );
-                add_neighbor(
-                    left_index(&r0, &c0, &nb_cols),
+                add_left_neighbor(
+                    &r0,
+                    &c0,
+                    &nb_cols_m1,
                     &mut square_neighbors,
+                    &square_cases,
                     &segment_positions,
                 );
             }
             4 => {
-                add_neighbor(
-                    left_index(&r0, &c0, &nb_cols),
+                add_left_neighbor(
+                    &r0,
+                    &c0,
+                    &nb_cols_m1,
                     &mut square_neighbors,
+                    &square_cases,
                     &segment_positions,
                 );
-                add_neighbor(
-                    bottom_index(&r0, &c0, &nb_cols),
+                add_bottom_neighbor(
+                    &r0,
+                    &c0,
+                    &nb_cols_m1,
                     &mut square_neighbors,
+                    &square_cases,
                     &segment_positions,
                 );
             }
             5 => {
-                add_neighbor(
-                    top_index(&r0, &c0, &nb_cols),
+                add_top_neighbor(
+                    &r0,
+                    &c0,
+                    &nb_cols_m1,
                     &mut square_neighbors,
+                    &square_cases,
                     &segment_positions,
                 );
-                add_neighbor(
-                    bottom_index(&r0, &c0, &nb_cols),
+                add_bottom_neighbor(
+                    &r0,
+                    &c0,
+                    &nb_cols_m1,
                     &mut square_neighbors,
+                    &square_cases,
                     &segment_positions,
                 );
             }
             6 => match vertex_connect_high {
                 true => {
-                    add_neighbor(
-                        left_index(&r0, &c0, &nb_cols),
+                    add_left_neighbor(
+                        &r0,
+                        &c0,
+                        &nb_cols_m1,
                         &mut square_neighbors,
+                        &square_cases,
                         &segment_positions,
                     );
-                    add_neighbor(
-                        top_index(&r0, &c0, &nb_cols),
+                    add_top_neighbor(
+                        &r0,
+                        &c0,
+                        &nb_cols_m1,
                         &mut square_neighbors,
+                        &square_cases,
                         &segment_positions,
                     );
                     // seg 2
-                    add_neighbor(
-                        right_index(&r0, &c0, &nb_cols),
+                    add_right_neighbor(
+                        &r0,
+                        &c0,
+                        &nb_cols_m1,
                         &mut square_neighbors,
+                        &square_cases,
                         &segment_positions,
                     );
-                    add_neighbor(
-                        bottom_index(&r0, &c0, &nb_cols),
+                    add_bottom_neighbor(
+                        &r0,
+                        &c0,
+                        &nb_cols_m1,
                         &mut square_neighbors,
+                        &square_cases,
                         &segment_positions,
                     );
                 }
                 false => {
-                    add_neighbor(
-                        right_index(&r0, &c0, &nb_cols),
+                    add_right_neighbor(
+                        &r0,
+                        &c0,
+                        &nb_cols_m1,
                         &mut square_neighbors,
+                        &square_cases,
                         &segment_positions,
                     );
-                    add_neighbor(
-                        top_index(&r0, &c0, &nb_cols),
+                    add_top_neighbor(
+                        &r0,
+                        &c0,
+                        &nb_cols_m1,
                         &mut square_neighbors,
+                        &square_cases,
                         &segment_positions,
                     );
                     // seg 2
-                    add_neighbor(
-                        left_index(&r0, &c0, &nb_cols),
+                    add_left_neighbor(
+                        &r0,
+                        &c0,
+                        &nb_cols_m1,
                         &mut square_neighbors,
+                        &square_cases,
                         &segment_positions,
                     );
-                    add_neighbor(
-                        bottom_index(&r0, &c0, &nb_cols),
+                    add_bottom_neighbor(
+                        &r0,
+                        &c0,
+                        &nb_cols_m1,
                         &mut square_neighbors,
+                        &square_cases,
                         &segment_positions,
                     );
                 }
             },
             7 => {
-                add_neighbor(
-                    right_index(&r0, &c0, &nb_cols),
+                add_right_neighbor(
+                    &r0,
+                    &c0,
+                    &nb_cols_m1,
                     &mut square_neighbors,
+                    &square_cases,
                     &segment_positions,
                 );
-                add_neighbor(
-                    bottom_index(&r0, &c0, &nb_cols),
+                add_bottom_neighbor(
+                    &r0,
+                    &c0,
+                    &nb_cols_m1,
                     &mut square_neighbors,
+                    &square_cases,
                     &segment_positions,
                 );
             }
             8 => {
-                add_neighbor(
-                    bottom_index(&r0, &c0, &nb_cols),
+                add_bottom_neighbor(
+                    &r0,
+                    &c0,
+                    &nb_cols_m1,
                     &mut square_neighbors,
+                    &square_cases,
                     &segment_positions,
                 );
-                add_neighbor(
-                    right_index(&r0, &c0, &nb_cols),
+                add_right_neighbor(
+                    &r0,
+                    &c0,
+                    &nb_cols_m1,
                     &mut square_neighbors,
+                    &square_cases,
                     &segment_positions,
                 );
             }
             9 => match vertex_connect_high {
                 true => {
-                    add_neighbor(
-                        top_index(&r0, &c0, &nb_cols),
+                    add_top_neighbor(
+                        &r0,
+                        &c0,
+                        &nb_cols_m1,
                         &mut square_neighbors,
+                        &square_cases,
                         &segment_positions,
                     );
-                    add_neighbor(
-                        right_index(&r0, &c0, &nb_cols),
+                    add_right_neighbor(
+                        &r0,
+                        &c0,
+                        &nb_cols_m1,
                         &mut square_neighbors,
+                        &square_cases,
                         &segment_positions,
                     );
                     // seg 2
-                    add_neighbor(
-                        bottom_index(&r0, &c0, &nb_cols),
+                    add_bottom_neighbor(
+                        &r0,
+                        &c0,
+                        &nb_cols_m1,
                         &mut square_neighbors,
+                        &square_cases,
                         &segment_positions,
                     );
-                    add_neighbor(
-                        left_index(&r0, &c0, &nb_cols),
+                    add_left_neighbor(
+                        &r0,
+                        &c0,
+                        &nb_cols_m1,
                         &mut square_neighbors,
+                        &square_cases,
                         &segment_positions,
                     );
                 }
                 false => {
-                    add_neighbor(
-                        top_index(&r0, &c0, &nb_cols),
+                    add_top_neighbor(
+                        &r0,
+                        &c0,
+                        &nb_cols_m1,
                         &mut square_neighbors,
+                        &square_cases,
                         &segment_positions,
                     );
-                    add_neighbor(
-                        left_index(&r0, &c0, &nb_cols),
+                    add_left_neighbor(
+                        &r0,
+                        &c0,
+                        &nb_cols_m1,
                         &mut square_neighbors,
+                        &square_cases,
                         &segment_positions,
                     );
                     // seg 2
-                    add_neighbor(
-                        bottom_index(&r0, &c0, &nb_cols),
+                    add_bottom_neighbor(
+                        &r0,
+                        &c0,
+                        &nb_cols_m1,
                         &mut square_neighbors,
+                        &square_cases,
                         &segment_positions,
                     );
-                    add_neighbor(
-                        right_index(&r0, &c0, &nb_cols),
+                    add_right_neighbor(
+                        &r0,
+                        &c0,
+                        &nb_cols_m1,
                         &mut square_neighbors,
+                        &square_cases,
                         &segment_positions,
                     );
                 }
             },
             10 => {
-                add_neighbor(
-                    bottom_index(&r0, &c0, &nb_cols),
+                add_bottom_neighbor(
+                    &r0,
+                    &c0,
+                    &nb_cols_m1,
                     &mut square_neighbors,
+                    &square_cases,
                     &segment_positions,
                 );
-                add_neighbor(
-                    top_index(&r0, &c0, &nb_cols),
+                add_top_neighbor(
+                    &r0,
+                    &c0,
+                    &nb_cols_m1,
                     &mut square_neighbors,
+                    &square_cases,
                     &segment_positions,
                 );
             }
             11 => {
-                add_neighbor(
-                    bottom_index(&r0, &c0, &nb_cols),
+                add_bottom_neighbor(
+                    &r0,
+                    &c0,
+                    &nb_cols_m1,
                     &mut square_neighbors,
+                    &square_cases,
                     &segment_positions,
                 );
-                add_neighbor(
-                    left_index(&r0, &c0, &nb_cols),
+                add_left_neighbor(
+                    &r0,
+                    &c0,
+                    &nb_cols_m1,
                     &mut square_neighbors,
+                    &square_cases,
                     &segment_positions,
                 );
             }
             12 => {
-                add_neighbor(
-                    left_index(&r0, &c0, &nb_cols),
+                add_left_neighbor(
+                    &r0,
+                    &c0,
+                    &nb_cols_m1,
                     &mut square_neighbors,
+                    &square_cases,
                     &segment_positions,
                 );
-                add_neighbor(
-                    right_index(&r0, &c0, &nb_cols),
+                add_right_neighbor(
+                    &r0,
+                    &c0,
+                    &nb_cols_m1,
                     &mut square_neighbors,
+                    &square_cases,
                     &segment_positions,
                 );
             }
             13 => {
-                add_neighbor(
-                    top_index(&r0, &c0, &nb_cols),
+                add_top_neighbor(
+                    &r0,
+                    &c0,
+                    &nb_cols_m1,
                     &mut square_neighbors,
+                    &square_cases,
                     &segment_positions,
                 );
-                add_neighbor(
-                    right_index(&r0, &c0, &nb_cols),
+                add_right_neighbor(
+                    &r0,
+                    &c0,
+                    &nb_cols_m1,
                     &mut square_neighbors,
+                    &square_cases,
                     &segment_positions,
                 );
             }
             14 => {
-                add_neighbor(
-                    left_index(&r0, &c0, &nb_cols),
+                add_left_neighbor(
+                    &r0,
+                    &c0,
+                    &nb_cols_m1,
                     &mut square_neighbors,
+                    &square_cases,
                     &segment_positions,
                 );
-                add_neighbor(
-                    top_index(&r0, &c0, &nb_cols),
+                add_top_neighbor(
+                    &r0,
+                    &c0,
+                    &nb_cols_m1,
                     &mut square_neighbors,
+                    &square_cases,
                     &segment_positions,
                 );
             }
