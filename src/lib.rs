@@ -279,12 +279,13 @@ fn add_top_neighbor(
         if top_index < (positions.len() - 1) {
             unsafe {
                 match square_cases.get_unchecked(top_index) {
-                    4 | 5 | 6 | 7 | 8 | 9 | 10 | 11 => {
-                        let start = *positions.get_unchecked(top_index);
-                        let end = *positions.get_unchecked(top_index + 1);
-                        for i in start..end {
-                            neighbors.push(i);
-                        }
+                    4 | 5 | 7 | 8 | 10 | 11 => {
+                        neighbors.push(*positions.get_unchecked(top_index));
+                    }
+                    6 | 9 => {
+                        let seg_index = *positions.get_unchecked(top_index);
+                        neighbors.push(seg_index);
+                        neighbors.push(seg_index + 1);
                     }
                     _ => (),
                 }
@@ -307,12 +308,13 @@ fn add_left_neighbor(
         if left_index < (positions.len() - 1) {
             unsafe {
                 match square_cases.get_unchecked(left_index) {
-                    2 | 3 | 6 | 7 | 8 | 9 | 12 | 13 => {
-                        let start = *positions.get_unchecked(left_index);
-                        let end = *positions.get_unchecked(left_index + 1);
-                        for i in start..end {
-                            neighbors.push(i);
-                        }
+                    2 | 3 | 7 | 8 | 12 | 13 => {
+                        neighbors.push(*positions.get_unchecked(left_index));
+                    }
+                    6 | 9 => {
+                        let seg_index = *positions.get_unchecked(left_index);
+                        neighbors.push(seg_index);
+                        neighbors.push(seg_index + 1);
                     }
                     _ => (),
                 }
@@ -334,12 +336,13 @@ fn add_right_neighbor(
     if right_index < (positions.len() - 1) {
         unsafe {
             match square_cases.get_unchecked(right_index) {
-                1 | 3 | 4 | 6 | 9 | 11 | 12 | 14 => {
-                    let start = *positions.get_unchecked(right_index);
-                    let end = *positions.get_unchecked(right_index + 1);
-                    for i in start..end {
-                        neighbors.push(i);
-                    }
+                1 | 3 | 4 | 11 | 12 | 14 => {
+                    neighbors.push(*positions.get_unchecked(right_index));
+                }
+                6 | 9 => {
+                    let seg_index = *positions.get_unchecked(right_index);
+                    neighbors.push(seg_index);
+                    neighbors.push(seg_index + 1);
                 }
                 _ => (),
             }
@@ -360,12 +363,13 @@ fn add_bottom_neighbor(
     if bottom_index < (positions.len() - 1) {
         unsafe {
             match square_cases.get_unchecked(bottom_index) {
-                1 | 2 | 5 | 6 | 9 | 10 | 13 | 14 => {
-                    let start = *positions.get_unchecked(bottom_index);
-                    let end = *positions.get_unchecked(bottom_index + 1);
-                    for i in start..end {
-                        neighbors.push(i);
-                    }
+                1 | 2 | 5 | 10 | 13 | 14 => {
+                    neighbors.push(*positions.get_unchecked(bottom_index));
+                }
+                6 | 9 => {
+                    let seg_index = *positions.get_unchecked(bottom_index);
+                    neighbors.push(seg_index);
+                    neighbors.push(seg_index + 1);
                 }
                 _ => (),
             }
