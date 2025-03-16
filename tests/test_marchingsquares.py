@@ -121,12 +121,7 @@ def test_marching_squares_random(random_array: NDArray[np.float64], benchmark) -
 
 @pytest.fixture(scope="module")
 def random_mask(random_array: NDArray[np.float64]) -> NDArray[np.bool]:
-    return (
-        np.random.random(random_array.shape[0] * random_array.shape[1]).reshape(
-            random_array.shape
-        )
-        < 0.1
-    )
+    return np.random.random(random_array.shape) < 0.1
 
 
 def test_get_contour_segments_random_with_mask(

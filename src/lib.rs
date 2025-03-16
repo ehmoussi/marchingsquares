@@ -267,47 +267,73 @@ fn _print_segment_by_position(
 
 #[inline(always)]
 fn add_top_neighbor(
-    r0: &usize,
-    c0: &usize,
-    nb_cols_m1: &usize,
+    r0: usize,
+    c0: usize,
+    nb_cols_m1: usize,
     head_neighbors: &mut Vec<Option<usize>>,
     tail_neighbors: &mut Vec<Option<usize>>,
     square_cases: &Vec<u8>,
     positions: &Vec<usize>,
     is_head: bool,
 ) {
-    let top_index = (r0 - 1) * nb_cols_m1 + c0;
-    match (
-        square_cases.get(top_index),
-        positions.get(top_index),
-        is_head,
-    ) {
-        (Some(8 | 10 | 11), Some(index), true) => {
-            head_neighbors.push(Some(*index));
-        }
-        (Some(4 | 5 | 7), Some(index), false) => {
-            tail_neighbors.push(Some(*index));
-        }
-        (Some(6), Some(index), false) => {
-            tail_neighbors.push(Some(*index + 1));
-        }
-        (Some(9), Some(index), true) => {
-            head_neighbors.push(Some(*index + 1));
-        }
-        (_, _, true) => {
+    if r0 == 0 {
+        if is_head {
             head_neighbors.push(None);
-        }
-        (_, _, false) => {
+        } else {
             tail_neighbors.push(None);
+        }
+    } else {
+        let top_index = (r0 - 1) * nb_cols_m1 + c0;
+        let square_case;
+        unsafe {
+            square_case = square_cases.get_unchecked(top_index);
+        }
+        match (square_case, is_head) {
+            // head
+            (8 | 10 | 11, true) => {
+                let index;
+                unsafe {
+                    index = positions.get_unchecked(top_index);
+                }
+                head_neighbors.push(Some(*index));
+            }
+            (9, true) => {
+                let index;
+                unsafe {
+                    index = positions.get_unchecked(top_index);
+                }
+                head_neighbors.push(Some(*index + 1));
+            }
+            (_, true) => {
+                head_neighbors.push(None);
+            }
+            // tail
+            (4 | 5 | 7, false) => {
+                let index;
+                unsafe {
+                    index = positions.get_unchecked(top_index);
+                }
+                tail_neighbors.push(Some(*index));
+            }
+            (6, false) => {
+                let index;
+                unsafe {
+                    index = positions.get_unchecked(top_index);
+                }
+                tail_neighbors.push(Some(*index + 1));
+            }
+            (_, false) => {
+                tail_neighbors.push(None);
+            }
         }
     }
 }
 
 #[inline(always)]
 fn add_left_neighbor(
-    r0: &usize,
-    c0: &usize,
-    nb_cols_m1: &usize,
+    r0: usize,
+    c0: usize,
+    nb_cols_m1: usize,
     head_neighbors: &mut Vec<Option<usize>>,
     tail_neighbors: &mut Vec<Option<usize>>,
     square_cases: &Vec<u8>,
@@ -315,45 +341,64 @@ fn add_left_neighbor(
     vertex_connect_high: bool,
     is_head: bool,
 ) {
-    let left_index = r0 * nb_cols_m1 + (c0 - 1);
-    match (
-        square_cases.get(left_index),
-        positions.get(left_index),
-        vertex_connect_high,
-        is_head,
-    ) {
-        (Some(2 | 3 | 7), Some(index), _, true) => {
-            head_neighbors.push(Some(*index));
-        }
-        (Some(8 | 12 | 13), Some(index), _, false) => {
-            tail_neighbors.push(Some(*index));
-        }
-        (Some(6), Some(index), true, true) => {
-            head_neighbors.push(Some(*index + 1));
-        }
-        (Some(6), Some(index), false, true) => {
-            head_neighbors.push(Some(*index));
-        }
-        (Some(9), Some(index), true, false) => {
-            tail_neighbors.push(Some(*index));
-        }
-        (Some(9), Some(index), false, false) => {
-            tail_neighbors.push(Some(*index + 1));
-        }
-        (_, _, _, true) => {
+    if c0 == 0 {
+        if is_head {
             head_neighbors.push(None);
-        }
-        (_, _, _, false) => {
+        } else {
             tail_neighbors.push(None);
+        }
+    } else {
+        let left_index = r0 * nb_cols_m1 + (c0 - 1);
+        let square_case;
+        unsafe {
+            square_case = square_cases.get_unchecked(left_index);
+        }
+        match (square_case, vertex_connect_high, is_head) {
+            // head
+            (2 | 3 | 7, _, true) | (6, false, true) => {
+                let index;
+                unsafe {
+                    index = positions.get_unchecked(left_index);
+                }
+                head_neighbors.push(Some(*index));
+            }
+            (6, true, true) => {
+                let index;
+                unsafe {
+                    index = positions.get_unchecked(left_index);
+                }
+                head_neighbors.push(Some(*index + 1));
+            }
+            (_, _, true) => {
+                head_neighbors.push(None);
+            }
+            // tail
+            (8 | 12 | 13, _, false) | (9, true, false) => {
+                let index;
+                unsafe {
+                    index = positions.get_unchecked(left_index);
+                }
+                tail_neighbors.push(Some(*index));
+            }
+            (9, false, false) => {
+                let index;
+                unsafe {
+                    index = positions.get_unchecked(left_index);
+                }
+                tail_neighbors.push(Some(*index + 1));
+            }
+            (_, _, false) => {
+                tail_neighbors.push(None);
+            }
         }
     }
 }
 
 #[inline(always)]
 fn add_right_neighbor(
-    r0: &usize,
-    c0: &usize,
-    nb_cols_m1: &usize,
+    r0: usize,
+    c0: usize,
+    nb_cols_m1: usize,
     head_neighbors: &mut Vec<Option<usize>>,
     tail_neighbors: &mut Vec<Option<usize>>,
     square_cases: &Vec<u8>,
@@ -362,44 +407,63 @@ fn add_right_neighbor(
     is_head: bool,
 ) {
     let right_index = r0 * nb_cols_m1 + (c0 + 1);
-    match (
-        square_cases.get(right_index),
-        positions.get(right_index),
-        vertex_connect_high,
-        is_head,
-    ) {
-        (Some(4 | 12 | 14), Some(index), _, true) => {
-            head_neighbors.push(Some(*index));
-        }
-        (Some(1 | 3 | 11), Some(index), _, false) => {
-            tail_neighbors.push(Some(*index));
-        }
-        (Some(6), Some(index), true, true) => {
-            head_neighbors.push(Some(*index));
-        }
-        (Some(6), Some(index), false, true) => {
-            head_neighbors.push(Some(*index + 1));
-        }
-        (Some(9), Some(index), true, false) => {
-            tail_neighbors.push(Some(*index + 1));
-        }
-        (Some(9), Some(index), false, false) => {
-            tail_neighbors.push(Some(*index));
-        }
-        (_, _, _, true) => {
+    if right_index >= square_cases.len() {
+        if is_head {
             head_neighbors.push(None);
-        }
-        (_, _, _, false) => {
+        } else {
             tail_neighbors.push(None);
+        }
+    } else {
+        let square_case;
+        unsafe {
+            square_case = square_cases.get_unchecked(right_index);
+        }
+        match (square_case, vertex_connect_high, is_head) {
+            // head
+            (4 | 12 | 14, _, true) | (6, true, true) => {
+                let index;
+                unsafe {
+                    index = positions.get_unchecked(right_index);
+                }
+                head_neighbors.push(Some(*index));
+            }
+            (6, false, true) => {
+                let index;
+                unsafe {
+                    index = positions.get_unchecked(right_index);
+                }
+                head_neighbors.push(Some(*index + 1));
+            }
+            (_, _, true) => {
+                head_neighbors.push(None);
+            }
+            // tail
+            (1 | 3 | 11, _, false) | (9, false, false) => {
+                let index;
+                unsafe {
+                    index = positions.get_unchecked(right_index);
+                }
+                tail_neighbors.push(Some(*index));
+            }
+            (9, true, false) => {
+                let index;
+                unsafe {
+                    index = positions.get_unchecked(right_index);
+                }
+                tail_neighbors.push(Some(*index + 1));
+            }
+            (_, _, false) => {
+                tail_neighbors.push(None);
+            }
         }
     }
 }
 
 #[inline(always)]
 fn add_bottom_neighbor(
-    r0: &usize,
-    c0: &usize,
-    nb_cols_m1: &usize,
+    r0: usize,
+    c0: usize,
+    nb_cols_m1: usize,
     head_neighbors: &mut Vec<Option<usize>>,
     tail_neighbors: &mut Vec<Option<usize>>,
     square_cases: &Vec<u8>,
@@ -407,28 +471,40 @@ fn add_bottom_neighbor(
     is_head: bool,
 ) {
     let bottom_index = (r0 + 1) * nb_cols_m1 + c0;
-    match (
-        square_cases.get(bottom_index),
-        positions.get(bottom_index),
-        is_head,
-    ) {
-        (Some(1 | 5 | 13), Some(index), true) => {
-            head_neighbors.push(Some(*index));
-        }
-        (Some(2 | 10 | 14), Some(index), false) => {
-            tail_neighbors.push(Some(*index));
-        }
-        (Some(6), Some(index), false) => {
-            tail_neighbors.push(Some(*index));
-        }
-        (Some(9), Some(index), true) => {
-            head_neighbors.push(Some(*index));
-        }
-        (_, _, true) => {
+    if bottom_index >= square_cases.len() {
+        if is_head {
             head_neighbors.push(None);
-        }
-        (_, _, false) => {
+        } else {
             tail_neighbors.push(None);
+        }
+    } else {
+        let square_case;
+        unsafe {
+            square_case = square_cases.get_unchecked(bottom_index);
+        }
+        match (square_case, is_head) {
+            // head
+            (1 | 5 | 13, true) | (9, true) => {
+                let index;
+                unsafe {
+                    index = positions.get_unchecked(bottom_index);
+                }
+                head_neighbors.push(Some(*index));
+            }
+            (_, true) => {
+                head_neighbors.push(None);
+            }
+            // tail
+            (2 | 10 | 14, false) | (6, false) => {
+                let index;
+                unsafe {
+                    index = positions.get_unchecked(bottom_index);
+                }
+                tail_neighbors.push(Some(*index));
+            }
+            (_, false) => {
+                tail_neighbors.push(None);
+            }
         }
     }
 }
@@ -441,7 +517,7 @@ fn build_neighbors(
     vertex_connect_high: bool,
 ) -> (Vec<Option<usize>>, Vec<Option<usize>>) {
     let mut segment_positions = vec![0; square_cases.len() + 1];
-    for (i, square_case) in square_cases.iter().enumerate() {
+    for (i, &square_case) in square_cases.iter().enumerate() {
         let nb_segments = match square_case {
             1 | 2 | 3 | 4 | 5 | 7 | 8 | 10 | 11 | 12 | 13 | 14 => 1,
             6 | 9 => 2,
@@ -461,9 +537,9 @@ fn build_neighbors(
             0 | 15 => (),
             1 => {
                 add_top_neighbor(
-                    &r0,
-                    &c0,
-                    &nb_cols_m1,
+                    r0,
+                    c0,
+                    nb_cols_m1,
                     &mut head_neighbors,
                     &mut tail_neighbors,
                     &square_cases,
@@ -471,9 +547,9 @@ fn build_neighbors(
                     false,
                 );
                 add_left_neighbor(
-                    &r0,
-                    &c0,
-                    &nb_cols_m1,
+                    r0,
+                    c0,
+                    nb_cols_m1,
                     &mut head_neighbors,
                     &mut tail_neighbors,
                     &square_cases,
@@ -484,9 +560,9 @@ fn build_neighbors(
             }
             2 => {
                 add_right_neighbor(
-                    &r0,
-                    &c0,
-                    &nb_cols_m1,
+                    r0,
+                    c0,
+                    nb_cols_m1,
                     &mut head_neighbors,
                     &mut tail_neighbors,
                     &square_cases,
@@ -495,9 +571,9 @@ fn build_neighbors(
                     false,
                 );
                 add_top_neighbor(
-                    &r0,
-                    &c0,
-                    &nb_cols_m1,
+                    r0,
+                    c0,
+                    nb_cols_m1,
                     &mut head_neighbors,
                     &mut tail_neighbors,
                     &square_cases,
@@ -507,9 +583,9 @@ fn build_neighbors(
             }
             3 => {
                 add_right_neighbor(
-                    &r0,
-                    &c0,
-                    &nb_cols_m1,
+                    r0,
+                    c0,
+                    nb_cols_m1,
                     &mut head_neighbors,
                     &mut tail_neighbors,
                     &square_cases,
@@ -518,9 +594,9 @@ fn build_neighbors(
                     false,
                 );
                 add_left_neighbor(
-                    &r0,
-                    &c0,
-                    &nb_cols_m1,
+                    r0,
+                    c0,
+                    nb_cols_m1,
                     &mut head_neighbors,
                     &mut tail_neighbors,
                     &square_cases,
@@ -531,9 +607,9 @@ fn build_neighbors(
             }
             4 => {
                 add_left_neighbor(
-                    &r0,
-                    &c0,
-                    &nb_cols_m1,
+                    r0,
+                    c0,
+                    nb_cols_m1,
                     &mut head_neighbors,
                     &mut tail_neighbors,
                     &square_cases,
@@ -542,9 +618,9 @@ fn build_neighbors(
                     false,
                 );
                 add_bottom_neighbor(
-                    &r0,
-                    &c0,
-                    &nb_cols_m1,
+                    r0,
+                    c0,
+                    nb_cols_m1,
                     &mut head_neighbors,
                     &mut tail_neighbors,
                     &square_cases,
@@ -554,9 +630,9 @@ fn build_neighbors(
             }
             5 => {
                 add_top_neighbor(
-                    &r0,
-                    &c0,
-                    &nb_cols_m1,
+                    r0,
+                    c0,
+                    nb_cols_m1,
                     &mut head_neighbors,
                     &mut tail_neighbors,
                     &square_cases,
@@ -564,9 +640,9 @@ fn build_neighbors(
                     false,
                 );
                 add_bottom_neighbor(
-                    &r0,
-                    &c0,
-                    &nb_cols_m1,
+                    r0,
+                    c0,
+                    nb_cols_m1,
                     &mut head_neighbors,
                     &mut tail_neighbors,
                     &square_cases,
@@ -577,9 +653,9 @@ fn build_neighbors(
             6 => match vertex_connect_high {
                 true => {
                     add_left_neighbor(
-                        &r0,
-                        &c0,
-                        &nb_cols_m1,
+                        r0,
+                        c0,
+                        nb_cols_m1,
                         &mut head_neighbors,
                         &mut tail_neighbors,
                         &square_cases,
@@ -588,9 +664,9 @@ fn build_neighbors(
                         false,
                     );
                     add_top_neighbor(
-                        &r0,
-                        &c0,
-                        &nb_cols_m1,
+                        r0,
+                        c0,
+                        nb_cols_m1,
                         &mut head_neighbors,
                         &mut tail_neighbors,
                         &square_cases,
@@ -599,9 +675,9 @@ fn build_neighbors(
                     );
                     // seg 2
                     add_right_neighbor(
-                        &r0,
-                        &c0,
-                        &nb_cols_m1,
+                        r0,
+                        c0,
+                        nb_cols_m1,
                         &mut head_neighbors,
                         &mut tail_neighbors,
                         &square_cases,
@@ -610,9 +686,9 @@ fn build_neighbors(
                         false,
                     );
                     add_bottom_neighbor(
-                        &r0,
-                        &c0,
-                        &nb_cols_m1,
+                        r0,
+                        c0,
+                        nb_cols_m1,
                         &mut head_neighbors,
                         &mut tail_neighbors,
                         &square_cases,
@@ -622,9 +698,9 @@ fn build_neighbors(
                 }
                 false => {
                     add_right_neighbor(
-                        &r0,
-                        &c0,
-                        &nb_cols_m1,
+                        r0,
+                        c0,
+                        nb_cols_m1,
                         &mut head_neighbors,
                         &mut tail_neighbors,
                         &square_cases,
@@ -633,9 +709,9 @@ fn build_neighbors(
                         false,
                     );
                     add_top_neighbor(
-                        &r0,
-                        &c0,
-                        &nb_cols_m1,
+                        r0,
+                        c0,
+                        nb_cols_m1,
                         &mut head_neighbors,
                         &mut tail_neighbors,
                         &square_cases,
@@ -644,9 +720,9 @@ fn build_neighbors(
                     );
                     // seg 2
                     add_left_neighbor(
-                        &r0,
-                        &c0,
-                        &nb_cols_m1,
+                        r0,
+                        c0,
+                        nb_cols_m1,
                         &mut head_neighbors,
                         &mut tail_neighbors,
                         &square_cases,
@@ -655,9 +731,9 @@ fn build_neighbors(
                         false,
                     );
                     add_bottom_neighbor(
-                        &r0,
-                        &c0,
-                        &nb_cols_m1,
+                        r0,
+                        c0,
+                        nb_cols_m1,
                         &mut head_neighbors,
                         &mut tail_neighbors,
                         &square_cases,
@@ -668,9 +744,9 @@ fn build_neighbors(
             },
             7 => {
                 add_right_neighbor(
-                    &r0,
-                    &c0,
-                    &nb_cols_m1,
+                    r0,
+                    c0,
+                    nb_cols_m1,
                     &mut head_neighbors,
                     &mut tail_neighbors,
                     &square_cases,
@@ -679,9 +755,9 @@ fn build_neighbors(
                     false,
                 );
                 add_bottom_neighbor(
-                    &r0,
-                    &c0,
-                    &nb_cols_m1,
+                    r0,
+                    c0,
+                    nb_cols_m1,
                     &mut head_neighbors,
                     &mut tail_neighbors,
                     &square_cases,
@@ -691,9 +767,9 @@ fn build_neighbors(
             }
             8 => {
                 add_bottom_neighbor(
-                    &r0,
-                    &c0,
-                    &nb_cols_m1,
+                    r0,
+                    c0,
+                    nb_cols_m1,
                     &mut head_neighbors,
                     &mut tail_neighbors,
                     &square_cases,
@@ -701,9 +777,9 @@ fn build_neighbors(
                     false,
                 );
                 add_right_neighbor(
-                    &r0,
-                    &c0,
-                    &nb_cols_m1,
+                    r0,
+                    c0,
+                    nb_cols_m1,
                     &mut head_neighbors,
                     &mut tail_neighbors,
                     &square_cases,
@@ -715,9 +791,9 @@ fn build_neighbors(
             9 => match vertex_connect_high {
                 true => {
                     add_top_neighbor(
-                        &r0,
-                        &c0,
-                        &nb_cols_m1,
+                        r0,
+                        c0,
+                        nb_cols_m1,
                         &mut head_neighbors,
                         &mut tail_neighbors,
                         &square_cases,
@@ -725,9 +801,9 @@ fn build_neighbors(
                         false,
                     );
                     add_right_neighbor(
-                        &r0,
-                        &c0,
-                        &nb_cols_m1,
+                        r0,
+                        c0,
+                        nb_cols_m1,
                         &mut head_neighbors,
                         &mut tail_neighbors,
                         &square_cases,
@@ -737,9 +813,9 @@ fn build_neighbors(
                     );
                     // seg 2
                     add_bottom_neighbor(
-                        &r0,
-                        &c0,
-                        &nb_cols_m1,
+                        r0,
+                        c0,
+                        nb_cols_m1,
                         &mut head_neighbors,
                         &mut tail_neighbors,
                         &square_cases,
@@ -747,9 +823,9 @@ fn build_neighbors(
                         false,
                     );
                     add_left_neighbor(
-                        &r0,
-                        &c0,
-                        &nb_cols_m1,
+                        r0,
+                        c0,
+                        nb_cols_m1,
                         &mut head_neighbors,
                         &mut tail_neighbors,
                         &square_cases,
@@ -760,9 +836,9 @@ fn build_neighbors(
                 }
                 false => {
                     add_top_neighbor(
-                        &r0,
-                        &c0,
-                        &nb_cols_m1,
+                        r0,
+                        c0,
+                        nb_cols_m1,
                         &mut head_neighbors,
                         &mut tail_neighbors,
                         &square_cases,
@@ -770,9 +846,9 @@ fn build_neighbors(
                         false,
                     );
                     add_left_neighbor(
-                        &r0,
-                        &c0,
-                        &nb_cols_m1,
+                        r0,
+                        c0,
+                        nb_cols_m1,
                         &mut head_neighbors,
                         &mut tail_neighbors,
                         &square_cases,
@@ -782,9 +858,9 @@ fn build_neighbors(
                     );
                     // seg 2
                     add_bottom_neighbor(
-                        &r0,
-                        &c0,
-                        &nb_cols_m1,
+                        r0,
+                        c0,
+                        nb_cols_m1,
                         &mut head_neighbors,
                         &mut tail_neighbors,
                         &square_cases,
@@ -792,9 +868,9 @@ fn build_neighbors(
                         false,
                     );
                     add_right_neighbor(
-                        &r0,
-                        &c0,
-                        &nb_cols_m1,
+                        r0,
+                        c0,
+                        nb_cols_m1,
                         &mut head_neighbors,
                         &mut tail_neighbors,
                         &square_cases,
@@ -806,9 +882,9 @@ fn build_neighbors(
             },
             10 => {
                 add_bottom_neighbor(
-                    &r0,
-                    &c0,
-                    &nb_cols_m1,
+                    r0,
+                    c0,
+                    nb_cols_m1,
                     &mut head_neighbors,
                     &mut tail_neighbors,
                     &square_cases,
@@ -816,9 +892,9 @@ fn build_neighbors(
                     false,
                 );
                 add_top_neighbor(
-                    &r0,
-                    &c0,
-                    &nb_cols_m1,
+                    r0,
+                    c0,
+                    nb_cols_m1,
                     &mut head_neighbors,
                     &mut tail_neighbors,
                     &square_cases,
@@ -828,9 +904,9 @@ fn build_neighbors(
             }
             11 => {
                 add_bottom_neighbor(
-                    &r0,
-                    &c0,
-                    &nb_cols_m1,
+                    r0,
+                    c0,
+                    nb_cols_m1,
                     &mut head_neighbors,
                     &mut tail_neighbors,
                     &square_cases,
@@ -838,9 +914,9 @@ fn build_neighbors(
                     false,
                 );
                 add_left_neighbor(
-                    &r0,
-                    &c0,
-                    &nb_cols_m1,
+                    r0,
+                    c0,
+                    nb_cols_m1,
                     &mut head_neighbors,
                     &mut tail_neighbors,
                     &square_cases,
@@ -851,9 +927,9 @@ fn build_neighbors(
             }
             12 => {
                 add_left_neighbor(
-                    &r0,
-                    &c0,
-                    &nb_cols_m1,
+                    r0,
+                    c0,
+                    nb_cols_m1,
                     &mut head_neighbors,
                     &mut tail_neighbors,
                     &square_cases,
@@ -862,9 +938,9 @@ fn build_neighbors(
                     false,
                 );
                 add_right_neighbor(
-                    &r0,
-                    &c0,
-                    &nb_cols_m1,
+                    r0,
+                    c0,
+                    nb_cols_m1,
                     &mut head_neighbors,
                     &mut tail_neighbors,
                     &square_cases,
@@ -875,9 +951,9 @@ fn build_neighbors(
             }
             13 => {
                 add_top_neighbor(
-                    &r0,
-                    &c0,
-                    &nb_cols_m1,
+                    r0,
+                    c0,
+                    nb_cols_m1,
                     &mut head_neighbors,
                     &mut tail_neighbors,
                     &square_cases,
@@ -885,9 +961,9 @@ fn build_neighbors(
                     false,
                 );
                 add_right_neighbor(
-                    &r0,
-                    &c0,
-                    &nb_cols_m1,
+                    r0,
+                    c0,
+                    nb_cols_m1,
                     &mut head_neighbors,
                     &mut tail_neighbors,
                     &square_cases,
@@ -898,9 +974,9 @@ fn build_neighbors(
             }
             14 => {
                 add_left_neighbor(
-                    &r0,
-                    &c0,
-                    &nb_cols_m1,
+                    r0,
+                    c0,
+                    nb_cols_m1,
                     &mut head_neighbors,
                     &mut tail_neighbors,
                     &square_cases,
@@ -909,9 +985,9 @@ fn build_neighbors(
                     false,
                 );
                 add_top_neighbor(
-                    &r0,
-                    &c0,
-                    &nb_cols_m1,
+                    r0,
+                    c0,
+                    nb_cols_m1,
                     &mut head_neighbors,
                     &mut tail_neighbors,
                     &square_cases,
