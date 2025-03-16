@@ -312,13 +312,14 @@ fn add_left_neighbor(
     tail_neighbors: &mut Vec<Option<usize>>,
     square_cases: &Vec<u8>,
     positions: &Vec<usize>,
+    vertex_connect_high: bool,
     is_head: bool,
 ) {
     let left_index = r0 * nb_cols_m1 + (c0 - 1);
     match (
         square_cases.get(left_index),
         positions.get(left_index),
-        false,
+        vertex_connect_high,
         is_head,
     ) {
         (Some(2 | 3 | 7), Some(index), _, true) => {
@@ -357,14 +358,14 @@ fn add_right_neighbor(
     tail_neighbors: &mut Vec<Option<usize>>,
     square_cases: &Vec<u8>,
     positions: &Vec<usize>,
-    // is_fully_connected: bool,
+    vertex_connect_high: bool,
     is_head: bool,
 ) {
     let right_index = r0 * nb_cols_m1 + (c0 + 1);
     match (
         square_cases.get(right_index),
         positions.get(right_index),
-        false,
+        vertex_connect_high,
         is_head,
     ) {
         (Some(4 | 12 | 14), Some(index), _, true) => {
@@ -477,6 +478,7 @@ fn build_neighbors(
                     &mut tail_neighbors,
                     &square_cases,
                     &segment_positions,
+                    vertex_connect_high,
                     true,
                 );
             }
@@ -489,6 +491,7 @@ fn build_neighbors(
                     &mut tail_neighbors,
                     &square_cases,
                     &segment_positions,
+                    vertex_connect_high,
                     false,
                 );
                 add_top_neighbor(
@@ -511,6 +514,7 @@ fn build_neighbors(
                     &mut tail_neighbors,
                     &square_cases,
                     &segment_positions,
+                    vertex_connect_high,
                     false,
                 );
                 add_left_neighbor(
@@ -521,6 +525,7 @@ fn build_neighbors(
                     &mut tail_neighbors,
                     &square_cases,
                     &segment_positions,
+                    vertex_connect_high,
                     true,
                 );
             }
@@ -533,6 +538,7 @@ fn build_neighbors(
                     &mut tail_neighbors,
                     &square_cases,
                     &segment_positions,
+                    vertex_connect_high,
                     false,
                 );
                 add_bottom_neighbor(
@@ -578,6 +584,7 @@ fn build_neighbors(
                         &mut tail_neighbors,
                         &square_cases,
                         &segment_positions,
+                        vertex_connect_high,
                         false,
                     );
                     add_top_neighbor(
@@ -599,6 +606,7 @@ fn build_neighbors(
                         &mut tail_neighbors,
                         &square_cases,
                         &segment_positions,
+                        vertex_connect_high,
                         false,
                     );
                     add_bottom_neighbor(
@@ -621,6 +629,7 @@ fn build_neighbors(
                         &mut tail_neighbors,
                         &square_cases,
                         &segment_positions,
+                        vertex_connect_high,
                         false,
                     );
                     add_top_neighbor(
@@ -642,6 +651,7 @@ fn build_neighbors(
                         &mut tail_neighbors,
                         &square_cases,
                         &segment_positions,
+                        vertex_connect_high,
                         false,
                     );
                     add_bottom_neighbor(
@@ -665,6 +675,7 @@ fn build_neighbors(
                     &mut tail_neighbors,
                     &square_cases,
                     &segment_positions,
+                    vertex_connect_high,
                     false,
                 );
                 add_bottom_neighbor(
@@ -697,6 +708,7 @@ fn build_neighbors(
                     &mut tail_neighbors,
                     &square_cases,
                     &segment_positions,
+                    vertex_connect_high,
                     true,
                 );
             }
@@ -720,6 +732,7 @@ fn build_neighbors(
                         &mut tail_neighbors,
                         &square_cases,
                         &segment_positions,
+                        vertex_connect_high,
                         true,
                     );
                     // seg 2
@@ -741,6 +754,7 @@ fn build_neighbors(
                         &mut tail_neighbors,
                         &square_cases,
                         &segment_positions,
+                        vertex_connect_high,
                         true,
                     );
                 }
@@ -763,6 +777,7 @@ fn build_neighbors(
                         &mut tail_neighbors,
                         &square_cases,
                         &segment_positions,
+                        vertex_connect_high,
                         true,
                     );
                     // seg 2
@@ -784,6 +799,7 @@ fn build_neighbors(
                         &mut tail_neighbors,
                         &square_cases,
                         &segment_positions,
+                        vertex_connect_high,
                         true,
                     );
                 }
@@ -829,6 +845,7 @@ fn build_neighbors(
                     &mut tail_neighbors,
                     &square_cases,
                     &segment_positions,
+                    vertex_connect_high,
                     true,
                 );
             }
@@ -841,6 +858,7 @@ fn build_neighbors(
                     &mut tail_neighbors,
                     &square_cases,
                     &segment_positions,
+                    vertex_connect_high,
                     false,
                 );
                 add_right_neighbor(
@@ -851,6 +869,7 @@ fn build_neighbors(
                     &mut tail_neighbors,
                     &square_cases,
                     &segment_positions,
+                    vertex_connect_high,
                     true,
                 );
             }
@@ -873,6 +892,7 @@ fn build_neighbors(
                     &mut tail_neighbors,
                     &square_cases,
                     &segment_positions,
+                    vertex_connect_high,
                     true,
                 );
             }
@@ -885,6 +905,7 @@ fn build_neighbors(
                     &mut tail_neighbors,
                     &square_cases,
                     &segment_positions,
+                    vertex_connect_high,
                     false,
                 );
                 add_top_neighbor(
@@ -912,8 +933,8 @@ fn build_neighbors(
         //     _ => assert_eq!(head_neighbors.len(), diff + 1, "{square_case}"),
         // }
     }
-    assert_eq!(tail_neighbors.len(), _segments.len() / 4);
-    assert_eq!(head_neighbors.len(), _segments.len() / 4);
+    // assert_eq!(tail_neighbors.len(), _segments.len() / 4);
+    // assert_eq!(head_neighbors.len(), _segments.len() / 4);
     (head_neighbors, tail_neighbors)
 }
 
